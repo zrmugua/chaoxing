@@ -6,6 +6,7 @@ from backend.app.adapters.yatori import YatoriAdapter
 from backend.app.db import Database
 from backend.app.services import PlatformService
 from backend.app.worker import Worker
+from backend.app.security import redact
 from backend.tests.test_platform import platform, add_account
 
 
@@ -81,3 +82,19 @@ def test_existing_database_keeps_logs_when_adding_source(tmp_path):
     assert db.one("SELECT message,source FROM logs") == {"message": "历史日志", "source": "console"}
     Database(path)
     assert db.one("SELECT count(*) AS count FROM logs")["count"] == 1
+
+
+def test_cookie_flags_preserve_console_timestamps_and_numbers():
+    lines = []
+    with YatoriAdapter({}, [{"name": "thirdRegist", "value": "0"}, {"name": "session", "value": "fixture-session-cookie"}],
+                       process_factory=ConsoleProcess, log_callback=lambda text, _: lines.append(text)) as adapter:
+        adapter._remember_log_cookies([{"name": "thirdRegist", "value": "1"}])
+        adapter._console_log("2026/10/20 progress=100 duration=300 fixture-session-cookie")
+    assert lines[-1] == "2026/10/20 progress=100 duration=300 [已过滤]"
+
+
+def test_console_request_urls_filter_task_signatures():
+    text = 'Get "https://mooc1.chaoxing.com/mooc-ans/multimedia/log/a/42/private-dtoken?playingTime=10&otherInfo=nodeId_300-enc_private-server-token&enc=private-signature&videoFaceCaptureEnc=private-face&attDurationEnc=private-duration": network unavailable'
+    result = redact(text)
+    assert all(value not in result for value in ("private-dtoken", "private-server-token", "private-signature", "private-face", "private-duration"))
+    assert "playingTime=10" in result and "nodeId_300-enc_" in result and "network unavailable" in result

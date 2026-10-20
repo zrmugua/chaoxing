@@ -55,7 +55,7 @@ class YatoriAdapter:
         self._control = control or (lambda: None)
         self._log_callback = log_callback
         self._log_secrets = {str(value) for key, value in credentials.items() if key in ("username", "password", "proxy_url") and value}
-        self._log_secrets.update(str(cookie["value"]) for cookie in cookies or [] if cookie.get("value"))
+        self._remember_log_cookies(cookies or [])
         self._messages: queue.Queue = queue.Queue()
         self._lock = threading.Lock()
         self._sequence = 0
@@ -108,6 +108,11 @@ class YatoriAdapter:
             pass
         finally:
             self._messages.put(None)
+
+    def _remember_log_cookies(self, cookies):
+        # Short flags and numeric identifiers are filtered by field, preserving diagnostics.
+        self._log_secrets.update(str(cookie["value"]) for cookie in cookies
+                                 if len(str(cookie.get("value", ""))) >= 8)
 
     def _console_log(self, text):
         if not self._log_callback or not isinstance(text, str):
@@ -177,7 +182,7 @@ class YatoriAdapter:
                         raise AdapterError(code, f"{stage}：{ERROR_MESSAGES[code]}", code in RETRYABLE_CODES)
                     data = result.get("data")
                     if operation == "export_cookies" and isinstance(data, list):
-                        self._log_secrets.update(str(cookie["value"]) for cookie in data if cookie.get("value"))
+                        self._remember_log_cookies(data)
                     return data
             except AdapterError:
                 self.close()
