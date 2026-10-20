@@ -185,14 +185,14 @@ onMounted(() => void load())
 <template>
   <PageHeading
     title="系统设置"
-    description="配置学习规则、运行参数、答题服务与通知。"
+    description="设置默认学习规则，以及所有账号共用的运行参数、答题服务与通知。"
     eyebrow="SETTINGS"
   />
   <NAlert v-if="error" type="error" class="mb-20">
     {{ error }}<NButton size="small" text @click="load">重试</NButton>
   </NAlert>
   <NTabs type="segment" animated>
-    <NTabPane name="study" tab="课程配置"><LearningRulesPanel /></NTabPane>
+    <NTabPane name="study" tab="默认学习配置"><LearningRulesPanel /></NTabPane>
     <NTabPane name="runtime" tab="运行与 AI">
       <NSpin :show="loading">
         <div class="settings-grid">

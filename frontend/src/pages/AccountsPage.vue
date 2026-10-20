@@ -186,6 +186,10 @@ function remove(account: Account) {
                   @click="execute(account, 'sync')"
                   >同步课程</NButton
                 ><NButton size="tiny" quaternary @click="openRules(account)">配置与启动</NButton
+                ><RouterLink
+                  :to="{ path: '/logs', query: { account_id: account.id } }"
+                  class="text-link small"
+                  >日志</RouterLink
                 ><NButton size="tiny" quaternary @click="open(account)">编辑</NButton
                 ><NButton size="tiny" quaternary type="error" @click="remove(account)"
                   >删除</NButton

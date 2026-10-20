@@ -36,7 +36,7 @@ export default createRouter({
     {
       path: '/settings',
       component: () => import('./pages/SettingsPage.vue'),
-      meta: { title: '系统设置', description: '学习规则、答题服务与任务通知' },
+      meta: { title: '系统设置', description: '默认学习规则、公共答题服务与任务通知' },
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

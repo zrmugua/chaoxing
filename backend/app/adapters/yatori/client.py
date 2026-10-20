@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import subprocess
 import threading
 import time
@@ -12,6 +13,7 @@ from dataclasses import asdict
 from typing import Callable
 
 from ..contracts import AdapterError, Job
+from ...security import redact
 
 
 ERROR_MESSAGES = {
@@ -44,12 +46,16 @@ OPERATION_LABELS = {
 class YatoriAdapter:
     """One native engine process per account operation or worker task.
 
-    Credentials travel through an anonymous stdin pipe. The child owns the Yatori account cache; only structured results and stable error codes cross the boundary.
+    Credentials travel through an anonymous stdin pipe. The child owns the Yatori account cache and sends structured results, progress and console events.
     """
 
     def __init__(self, credentials: dict, cookies: list[dict] | None = None,
-                 control: Callable[[], None] | None = None, process_factory=None):
+                 control: Callable[[], None] | None = None, process_factory=None,
+                 log_callback: Callable[[str, str], None] | None = None):
         self._control = control or (lambda: None)
+        self._log_callback = log_callback
+        self._log_secrets = {str(value) for key, value in credentials.items() if key in ("username", "password", "proxy_url") and value}
+        self._log_secrets.update(str(cookie["value"]) for cookie in cookies or [] if cookie.get("value"))
         self._messages: queue.Queue = queue.Queue()
         self._lock = threading.Lock()
         self._sequence = 0
@@ -67,9 +73,11 @@ class YatoriAdapter:
             self._process = (process_factory or subprocess.Popen)(
                 [engine],
                 cwd=root, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL, text=True, encoding="utf-8", bufsize=1,
+                stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", bufsize=1,
             )
             threading.Thread(target=self._read_results, daemon=True).start()
+            if getattr(self._process, "stderr", None) is not None:
+                threading.Thread(target=self._read_stderr, daemon=True).start()
             self.engine_info = self._rpc("initialize", {"credentials": credentials, "cookies": cookies or []})
             if not isinstance(self.engine_info, dict) or self.engine_info.get("engine") != "yatori":
                 raise AdapterError("core_unavailable", ERROR_MESSAGES["core_unavailable"])
@@ -90,11 +98,35 @@ class YatoriAdapter:
                     message = json.loads(line)
                 except (ValueError, TypeError):
                     break
+                if not isinstance(message, dict):
+                    break
+                if message.get("event") == "log":
+                    self._console_log(message.get("message"))
+                    continue
                 self._messages.put(message)
         except (OSError, ValueError):
             pass
         finally:
             self._messages.put(None)
+
+    def _console_log(self, text):
+        if not self._log_callback or not isinstance(text, str):
+            return
+        text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+        text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+        text = redact(text, tuple(self._log_secrets), limit=66000)
+        if text:
+            match = re.search(r"\b(DEBUG|INFO|WARN(?:ING)?|ERROR|FATAL|PANIC)\b", text, re.I)
+            level = match.group(1).lower() if match else "info"
+            level = {"warn": "warning", "fatal": "error", "panic": "error"}.get(level, level)
+            self._log_callback(text, level)
+
+    def _read_stderr(self):
+        try:
+            for line in self._process.stderr:
+                self._console_log(line.rstrip("\r\n"))
+        except (OSError, ValueError):
+            pass
 
     def _rpc(self, operation: str, arguments: dict | None = None,
              control: Callable[[], None] | None = None,
@@ -143,7 +175,10 @@ class YatoriAdapter:
                         if type(card_index) is int and 0 <= card_index <= 10000:
                             stage += f"（第 {card_index + 1} 张任务卡）"
                         raise AdapterError(code, f"{stage}：{ERROR_MESSAGES[code]}", code in RETRYABLE_CODES)
-                    return result.get("data")
+                    data = result.get("data")
+                    if operation == "export_cookies" and isinstance(data, list):
+                        self._log_secrets.update(str(cookie["value"]) for cookie in data if cookie.get("value"))
+                    return data
             except AdapterError:
                 self.close()
                 raise
@@ -204,7 +239,7 @@ class YatoriAdapter:
             process.wait(timeout=5)
         except (OSError, subprocess.TimeoutExpired):
             pass
-        for stream in (process.stdin, process.stdout):
+        for stream in (process.stdin, process.stdout, getattr(process, "stderr", None)):
             if stream:
                 try:
                     stream.close()

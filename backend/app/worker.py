@@ -91,6 +91,12 @@ class Worker(AssessmentWorker):
     def checkpoint(self, task_id, checkpoint):
         self.update(task_id, checkpoint=json.dumps(checkpoint, ensure_ascii=False))
 
+    def create_adapter(self, task, credentials, cookies, control):
+        if self.adapter_factory is YatoriAdapter or getattr(self.adapter_factory, "func", None) is YatoriAdapter:
+            return self.adapter_factory(credentials, cookies, control,
+                log_callback=lambda text, level: self.db.log(text, task["id"], level, source="yatori"))
+        return self.adapter_factory(credentials, cookies, control)
+
     def finish(self, task, state, message, server_state=None):
         now = time.time()
         with self.db.connect(immediate=True) as c:
@@ -125,7 +131,7 @@ class Worker(AssessmentWorker):
             credentials = credentials | {key: options[key] for key in ("execution_timeout", "media_client")}
             credentials["proxy_url"] = self.service.account_preferences(account["id"], True)["proxy_url"]
             cookies = self.vault.open(account["cookies"]) if account["cookies"] else []
-            adapter = self.adapter_factory(credentials, cookies, lambda: self.control(task["id"]))
+            adapter = self.create_adapter(task, credentials, cookies, lambda: self.control(task["id"]))
             self.db.log("已建立本任务独立的 Yatori 执行进程", task["id"], "debug")
             if task["kind"] == "login" or not cookies:
                 adapter.login(credentials["username"], credentials["password"])
@@ -355,7 +361,7 @@ class Worker(AssessmentWorker):
             child = None
             try:
                 control()
-                child = self.adapter_factory(credentials, cookies, control)
+                child = self.create_adapter(task, credentials, cookies, control)
                 current = next((item for item in child.list_jobs(course, chapter) if item.id == job.id), None)
                 if current is None:
                     raise AdapterError("parser_changed", "任务点刷新后无法定位，请同步核对")

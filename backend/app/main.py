@@ -6,6 +6,7 @@ import sqlite3
 import time
 from pathlib import Path
 from urllib.parse import urlparse
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -32,7 +33,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     else:
         db.set_setting("vault_check", vault.seal("study-console"))
     service = PlatformService(db, vault)
-    app = FastAPI(title="学习通管理平台", version="0.5.0", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="学习通管理平台", version="0.5.2", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db, app.state.vault = db, vault
 
     @app.exception_handler(RequestValidationError)
@@ -244,15 +245,23 @@ def create_app(config: Config | None = None) -> FastAPI:
         return db.rows("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,))
 
     @app.get("/api/logs", dependencies=[Depends(authenticated)])
-    def logs(after: int = Query(default=0, ge=0), task_id: int | None = None):
-        sql, args = "SELECT * FROM logs WHERE id>?", [after]
+    def logs(after: int = Query(default=0, ge=0), task_id: int | None = None,
+             account_id: int | None = None, source: Literal["console", "yatori"] | None = None):
+        sql, args = """SELECT l.*,t.account_id,a.label AS account_label FROM logs l
+            LEFT JOIN tasks t ON t.id=l.task_id LEFT JOIN accounts a ON a.id=t.account_id WHERE l.id>?""", [after]
         if task_id is not None:
-            sql += " AND task_id=?"
+            sql += " AND l.task_id=?"
             args.append(task_id)
+        if account_id is not None:
+            sql += " AND t.account_id=?"
+            args.append(account_id)
+        if source is not None:
+            sql += " AND l.source=?"
+            args.append(source)
         # Initial visit returns the latest window; subsequent polling advances the cursor.
         if after == 0:
-            return list(reversed(db.rows(sql + " ORDER BY id DESC LIMIT 300", args)))
-        return db.rows(sql + " ORDER BY id LIMIT 300", args)
+            return list(reversed(db.rows(sql + " ORDER BY l.id DESC LIMIT 300", args)))
+        return db.rows(sql + " ORDER BY l.id LIMIT 300", args)
 
     @app.get("/api/settings", dependencies=[Depends(authenticated)])
     def get_settings():

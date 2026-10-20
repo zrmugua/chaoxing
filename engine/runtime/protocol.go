@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -27,22 +26,22 @@ type Response struct {
 	Event     string  `json:"event,omitempty"`
 	Value     float64 `json:"value,omitempty"`
 	CardIndex *int    `json:"card_index,omitempty"`
+	Message   string  `json:"message,omitempty"`
 }
 
 func ServeStdio() { Serve(os.Stdin, os.Stdout) }
 
 // Serve owns one account for the lifetime of an isolated engine process.
 func Serve(input io.Reader, output io.Writer) {
-	log.SetOutput(io.Discard)
-	previousOut, previousErr := os.Stdout, os.Stderr
-	defer func() { os.Stdout, os.Stderr = previousOut, previousErr }()
-	if sink, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0); err == nil {
-		os.Stdout, os.Stderr = sink, sink
-		defer sink.Close()
-	}
 	encoder := json.NewEncoder(output)
 	var mutex sync.Mutex
 	emit := func(r Response) { mutex.Lock(); defer mutex.Unlock(); _ = encoder.Encode(r) }
+	console, err := captureConsole(func(message string) { emit(Response{Event: "log", Message: message}) })
+	if err != nil {
+		emit(Response{Code: "core_unavailable"})
+		return
+	}
+	defer console.close()
 	scanner := bufio.NewScanner(input)
 	scanner.Buffer(make([]byte, 4096), 2_000_000)
 	var state *Runtime
@@ -87,6 +86,7 @@ func Serve(input io.Reader, output io.Writer) {
 				result.Data = data
 			}
 		}
+		console.flush()
 		emit(result)
 	}
 }

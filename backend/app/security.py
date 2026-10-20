@@ -32,10 +32,10 @@ def digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def redact(text: str, secrets_to_hide=()) -> str:
+def redact(text: str, secrets_to_hide=(), limit=1000) -> str:
     for value in sorted((str(s) for s in secrets_to_hide if s), key=len, reverse=True):
         text = text.replace(value, "[已过滤]")
-    text = re.sub(r"(?im)(authorization|cookie|set-cookie)\s*[:=][^\r\n]*", r"\1: [已过滤]", text)
+    text = re.sub(r"(?im)(authorization|cookie|set-cookie)[\"']?\s*[:=][^\r\n]*", r"\1: [已过滤]", text)
     text = re.sub(r"(?i)(password|api[_-]?key|token|dtoken|jtoken|uname|_uid)\s*[\"']?\s*[:=]\s*[\"']?[^\s,;&\"'}]+", r"\1=[已过滤]", text)
     text = re.sub(r"\b1[3-9]\d{9}\b", "[手机号]", text)
-    return text[:1000]
+    return text[:limit]

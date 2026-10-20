@@ -11,15 +11,7 @@ import {
   NTag,
   useMessage,
 } from 'naive-ui'
-import {
-  ArrowRight,
-  BookOpen,
-  CheckCheck,
-  Layers3,
-  LockKeyhole,
-  RefreshCw,
-  Search,
-} from 'lucide-vue-next'
+import { ArrowRight, BookOpen, CheckCheck, LockKeyhole, RefreshCw, Search } from 'lucide-vue-next'
 import PageHeading from '../components/PageHeading.vue'
 import EmptyState from '../components/EmptyState.vue'
 import QuestionPanel from '../components/QuestionPanel.vue'
@@ -106,14 +98,20 @@ function study(course: Course) {
   <NAlert v-if="courses.error.value || accounts.error.value" type="error" class="mb-20">{{
     courses.error.value || accounts.error.value
   }}</NAlert>
-  <div class="filter-bar">
+  <div class="filter-bar course-filters">
     <div class="filter-inputs">
-      <NInput v-model:value="search" placeholder="搜索课程或教师" clearable class="search-input"
+      <NInput
+        v-model:value="search"
+        placeholder="搜索课程或教师"
+        aria-label="搜索课程或教师"
+        clearable
+        class="search-input"
         ><template #prefix><Search :size="16" /></template></NInput
       ><NSelect
         v-model:value="accountId"
         :options="options"
         placeholder="全部账号"
+        aria-label="筛选账号"
         clearable
         class="account-select"
       />
@@ -123,35 +121,60 @@ function study(course: Course) {
     >
     <span class="muted">{{ filtered.length }} 门课程</span>
   </div>
-  <div v-if="filtered.length" class="course-grid">
-    <article v-for="course in filtered" :key="course.id" class="course-card">
-      <div class="course-card-top">
-        <span class="course-icon"><BookOpen :size="25" :stroke-width="1.5" /></span
-        ><NTag size="small" :bordered="false" class="course-account">{{
-          accounts.data.value.find((a) => a.id === course.account_id)?.label ||
-          `账号 #${course.account_id}`
-        }}</NTag>
-      </div>
-      <h2>{{ course.title }}</h2>
-      <p class="course-teacher">{{ course.teacher || '教师信息待同步' }}</p>
-      <div class="course-meta">
-        <span><Layers3 :size="14" />课程 {{ course.remote_id }}</span
-        ><span>同步于 {{ date(course.synced_at, true) }}</span>
-      </div>
-      <div class="course-actions">
-        <NButton size="small" secondary @click="openChapters(course)">查看章节</NButton
-        ><NButton
-          size="small"
-          quaternary
-          :loading="busy === course.id"
-          @click="execute(course, 'sync')"
-          >同步</NButton
-        ><NButton size="small" type="primary" :disabled="busy === course.id" @click="study(course)"
-          >创建学习任务</NButton
-        >
-      </div>
-    </article>
-  </div>
+  <section v-if="filtered.length" class="panel course-list">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="课程列表，可横向滚动">
+      <table class="data-table course-table" aria-label="课程列表">
+        <thead>
+          <tr>
+            <th scope="col">课程</th>
+            <th scope="col">所属账号</th>
+            <th scope="col">教师</th>
+            <th scope="col">最近同步</th>
+            <th scope="col" class="actions-cell">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="course in filtered" :key="course.id">
+            <td class="course-name-cell">
+              <div class="course-cell">
+                <span class="course-icon"><BookOpen :size="19" :stroke-width="1.5" /></span>
+                <div>
+                  <h2>{{ course.title }}</h2>
+                  <div class="cell-subtitle">课程 {{ course.remote_id }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="course-account-cell">
+              <NTag size="small" :bordered="false" class="course-account">{{
+                accounts.data.value.find((a) => a.id === course.account_id)?.label ||
+                `账号 #${course.account_id}`
+              }}</NTag>
+            </td>
+            <td class="course-teacher-cell">{{ course.teacher || '教师信息待同步' }}</td>
+            <td class="cell-date">{{ date(course.synced_at, true) }}</td>
+            <td class="actions-cell">
+              <div class="row-actions">
+                <NButton size="small" secondary @click="openChapters(course)">查看章节</NButton
+                ><NButton
+                  size="small"
+                  quaternary
+                  :loading="busy === course.id"
+                  @click="execute(course, 'sync')"
+                  >同步</NButton
+                ><NButton
+                  size="small"
+                  type="primary"
+                  :disabled="busy === course.id"
+                  @click="study(course)"
+                  >创建学习任务</NButton
+                >
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
   <section v-else class="panel">
     <EmptyState
       :title="search || accountId ? '没有找到匹配的课程' : '暂无已同步课程'"

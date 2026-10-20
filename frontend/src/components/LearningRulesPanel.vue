@@ -134,7 +134,7 @@ async function save(start = false) {
       clearProxy.value = false
     }
     assign(await api(endpoint.value, { method: 'PUT', body: JSON.stringify(form) }))
-    message.success('课程配置已保存')
+    message.success(props.accountId ? '账号学习配置已保存' : '默认学习配置已保存')
     if (start) emit('start')
   } catch (e) {
     message.error(errorText(e))
@@ -145,7 +145,7 @@ async function save(start = false) {
 async function reset() {
   try {
     assign(await api(endpoint.value, { method: 'DELETE' }))
-    message.success('已使用全局课程配置')
+    message.success('已跟随默认学习配置')
   } catch (e) {
     message.error(errorText(e))
   }
@@ -157,17 +157,35 @@ onMounted(load)
     <div class="settings-heading">
       <div>
         <h2>
-          课程配置
+          {{ accountId ? '账号学习配置' : '默认学习配置' }}
           <NTag v-if="accountId" size="small" :bordered="false">{{
-            overridden ? '账号专属' : '使用全局'
+            overridden ? '账号专属' : '跟随默认'
           }}</NTag>
         </h2>
-        <p>选择课程范围、视频方式和答题策略</p>
+        <p>
+          {{
+            accountId
+              ? '选择该账号的课程范围、视频方式和答题策略'
+              : '设置账号共用的默认课程范围、视频方式和答题策略'
+          }}
+        </p>
       </div>
     </div>
     <NAlert v-if="error" type="error" class="mb-20"
       >{{ error }} <NButton text @click="load">重试</NButton></NAlert
     >
+    <NAlert v-if="!loading && !error" type="info" :show-icon="false" class="mb-20">
+      <template v-if="!accountId">
+        新账号和跟随默认配置的账号，创建学习任务时使用这里的规则。已保存专属配置的账号按各自的规则创建任务。
+      </template>
+      <template v-else-if="overridden">
+        当前使用账号专属配置，保存后用于该账号的新任务。点击「跟随默认配置」可恢复使用系统默认规则。
+      </template>
+      <template v-else>
+        当前跟随系统默认学习配置。保存此页后，该账号将使用专属配置创建新任务。默认规则可在「系统设置
+        → 默认学习配置」中调整。
+      </template>
+    </NAlert>
     <NSpin :show="loading"
       ><NForm label-placement="top" @submit.prevent="save()">
         <NFormItem label="课程模式"
@@ -312,9 +330,10 @@ onMounted(load)
         </p>
         <div class="settings-actions">
           <NButton v-if="accountId && overridden" :disabled="saving" @click="reset"
-            >使用全局配置</NButton
-          ><NButton attr-type="submit" :loading="saving" :disabled="loading || !!error"
-            >保存配置</NButton
+            >跟随默认配置</NButton
+          ><NButton attr-type="submit" :loading="saving" :disabled="loading || !!error">{{
+            accountId ? '保存账号配置' : '保存默认配置'
+          }}</NButton
           ><NButton
             v-if="accountId"
             type="primary"

@@ -60,6 +60,9 @@ export interface Log {
   task_id: number | null
   level: string
   message: string
+  source: 'console' | 'yatori'
+  account_id: number | null
+  account_label: string | null
   created_at: Timestamp
 }
 export interface Dashboard {

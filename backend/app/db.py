@@ -33,7 +33,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS one_active_task ON tasks(account_id, COALESCE(
 CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
  attempt INTEGER NOT NULL, started_at REAL NOT NULL, finished_at REAL, state TEXT NOT NULL, message TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY, task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
- level TEXT NOT NULL, message TEXT NOT NULL, created_at REAL NOT NULL);
+ level TEXT NOT NULL, message TEXT NOT NULL, created_at REAL NOT NULL, source TEXT NOT NULL DEFAULT 'console');
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS learning_rules(account_id INTEGER PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
  payload TEXT NOT NULL);
@@ -58,6 +58,13 @@ class Database:
         with self.connect() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
+            conn.execute("BEGIN IMMEDIATE")
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(logs)")}
+            if "source" not in columns:
+                conn.execute("ALTER TABLE logs ADD COLUMN source TEXT NOT NULL DEFAULT 'console'")
+            conn.execute("CREATE INDEX IF NOT EXISTS logs_task_cursor ON logs(task_id,id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS logs_source_cursor ON logs(source,id)")
+            conn.execute("INSERT OR IGNORE INTO schema_migrations VALUES(2, unixepoch())")
 
     @contextlib.contextmanager
     def connect(self, immediate=False):
@@ -88,18 +95,19 @@ class Database:
         with self.connect() as c:
             return c.execute(sql, args).lastrowid
 
-    def log(self, message, task_id=None, level="info"):
+    def log(self, message, task_id=None, level="info", source="console"):
         ranks = {"debug": 0, "info": 1, "warning": 2, "error": 3}
         if ranks.get(level.lower(), 1) < ranks[self.settings()["log_level"]]:
             return
-        self.execute("INSERT INTO logs(task_id,level,message,created_at) VALUES(?,?,?,?)",
-                     (task_id, level, redact(message), time.time()))
+        message = redact(message, limit=66000 if source == "yatori" else 1000)
+        self.execute("INSERT INTO logs(task_id,level,message,created_at,source) VALUES(?,?,?,?,?)",
+                     (task_id, level, message, time.time(), source))
         if self.settings()["log_out_file"]:
             try:
                 with FileLock(str(self.path.parent / "log-output.lock"), timeout=2):
                     handler = RotatingFileHandler(self.path.parent / "console.log", maxBytes=1_000_000, backupCount=3, encoding="utf-8")
                     try:
-                        handler.emit(LogRecord("console", 20, "", 0, f"{time.strftime('%Y-%m-%d %H:%M:%S')} [{level}] {redact(message)}", (), None))
+                        handler.emit(LogRecord("console", 20, "", 0, f"{time.strftime('%Y-%m-%d %H:%M:%S')} [{level}] [{source}] [任务 #{task_id}] {message}", (), None))
                     finally:
                         handler.close()
             except (OSError, TimeoutError):
