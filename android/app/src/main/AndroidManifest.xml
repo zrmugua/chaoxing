@@ -1,0 +1,36 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <application android:allowBackup="false" android:fullBackupContent="false"
+        android:label="学习通管理台" android:icon="@drawable/ic_console"
+        android:theme="@style/ConsoleTheme" android:usesCleartextTraffic="true"
+        android:supportsRtl="true">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity>
+        <service android:name=".ConsoleService" android:process=":server" android:exported="false"
+            android:foregroundServiceType="specialUse" android:stopWithTask="false">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-started local HTTP learning management server with persistent task execution" />
+        </service>
+        <service android:name=".AdapterServices$Slot0" android:process=":adapter0" android:exported="false" />
+        <service android:name=".AdapterServices$Slot1" android:process=":adapter1" android:exported="false" />
+        <service android:name=".AdapterServices$Slot2" android:process=":adapter2" android:exported="false" />
+        <service android:name=".AdapterServices$Slot3" android:process=":adapter3" android:exported="false" />
+        <service android:name=".AdapterServices$Slot4" android:process=":adapter4" android:exported="false" />
+        <service android:name=".AdapterServices$Slot5" android:process=":adapter5" android:exported="false" />
+        <service android:name=".AdapterServices$Slot6" android:process=":adapter6" android:exported="false" />
+        <service android:name=".AdapterServices$Slot7" android:process=":adapter7" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+        </receiver>
+        <provider android:name=".DeviceStatusProvider" android:authorities="cn.zrmug.chaoxing.device"
+            android:exported="true" android:permission="android.permission.DUMP" />
+    </application>
+</manifest>

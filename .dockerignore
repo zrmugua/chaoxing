@@ -1,0 +1,14 @@
+.git
+.research
+.venv
+.env
+data
+artifacts
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+frontend/dist
+android
+.tools
+bin
+.codex-remote-attachments

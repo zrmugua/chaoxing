@@ -1,0 +1,82 @@
+name: Android APK
+on:
+  push:
+    paths: ['android/**', 'backend/**', 'engine/**', 'third_party/**', 'frontend/**', 'scripts/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.27', cache-dependency-path: engine/go.sum}
+      - run: pip install -r android/requirements.txt cryptography pytest
+      - run: python scripts/vendor_yatori.py
+      - run: python scripts/build_engine.py
+      - run: go test ./...
+        working-directory: engine
+      - run: python -m pytest -q
+      - run: python -m compileall -q backend
+  apk:
+    needs: compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.27', cache-dependency-path: engine/go.sum}
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm --prefix frontend ci
+      - run: npm --prefix frontend run build
+      - name: Build native Yatori library
+        run: |
+          sdkmanager "ndk;30.0.16248370"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
+          python scripts/collect_go_licenses.py
+          python scripts/build_android_engine.py
+      - name: Build Android packages and native unit tests
+        env:
+          CHAOXING_BUILD_PYTHON: python
+          SOURCE_URL: https://github.com/${{ github.repository }}/tree/${{ github.sha }}
+        run: |
+          chmod +x android/gradlew
+          android/gradlew -p android :app:assembleDeviceRelease :app:assembleEmulatorDebug :app:assembleEmulatorDebugAndroidTest :app:testDeviceReleaseUnitTest --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chaoxing-android-unsigned
+          path: android/app/build/outputs/apk/device/release/*.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Android runtime verification
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none -memory 2048
+          script: bash scripts/verify_android_runtime.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-verification
+          path: |
+            android/app/build/reports/androidTests/
+            android/app/build/reports/tests/
+            artifacts/android-ci/

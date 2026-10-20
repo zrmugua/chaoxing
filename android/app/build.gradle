@@ -1,0 +1,83 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+if (providers.gradleProperty('consoleBuildRoot').isPresent()) {
+    layout.buildDirectory.set(file(providers.gradleProperty('consoleBuildRoot').get() + '/app'))
+}
+
+android {
+    namespace 'cn.zrmug.chaoxing'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'cn.zrmug.chaoxing'
+        minSdk 26
+        targetSdk 35
+        versionCode 7
+        versionName '0.5.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        buildConfigField 'String', 'SOURCE_URL', '"' + (System.getenv('SOURCE_URL') ?: 'https://github.com/zrmugua/chaoxing') + '"'
+    }
+    flavorDimensions += 'runtime'
+    productFlavors {
+        device { dimension 'runtime'; ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' } }
+        emulator { dimension 'runtime'; ndk { abiFilters 'x86_64' } }
+    }
+    buildFeatures { buildConfig true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    sourceSets {
+        main {
+            assets.srcDir layout.buildDirectory.dir('generated/consoleAssets')
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false }
+    }
+    packaging { resources { excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF'] } }
+}
+
+chaquopy {
+    defaultConfig {
+        version = '3.11'
+        if (System.getenv('CHAOXING_BUILD_PYTHON')) buildPython(System.getenv('CHAOXING_BUILD_PYTHON'))
+        pip {
+            options '--find-links', '../.wheels'
+            install '-r', '../requirements.txt'
+        }
+        extractPackages 'backend'
+    }
+    sourceSets { main { srcDir layout.buildDirectory.dir('generated/python') } }
+}
+
+def sourceRoot = rootProject.projectDir.parentFile
+tasks.register('bundleConsolePython', Sync) {
+    from(sourceRoot) { include 'backend/__init__.py', 'backend/app/**/*.py' }
+    includeEmptyDirs = false
+    into layout.buildDirectory.dir('generated/python')
+}
+tasks.register('bundleConsoleAssets', Sync) {
+    from(new File(sourceRoot, 'frontend/dist')) { into 'console/web' }
+    from(sourceRoot) { include 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'UPSTREAM.md'; into 'console/licenses' }
+    from(new File(rootProject.projectDir, 'licenses')) { into 'console/licenses/android' }
+    from(new File(sourceRoot, 'third_party/yatori-go-core/LICENSE')) { into 'console/licenses/yatori' }
+    from(new File(sourceRoot, 'engine/licenses')) { into 'console/licenses/go' }
+    into layout.buildDirectory.dir('generated/consoleAssets')
+    doFirst {
+        if (!new File(sourceRoot, 'frontend/dist/index.html').isFile())
+            throw new GradleException('Build frontend first: npm --prefix frontend ci && npm --prefix frontend run build')
+    }
+}
+tasks.configureEach {
+    if (name.toLowerCase().contains('python') && name != 'bundleConsolePython') dependsOn 'bundleConsolePython'
+    if (name.startsWith('merge') && name.endsWith('Assets')) dependsOn 'bundleConsoleAssets'
+    if (name.toLowerCase().contains('lint')) dependsOn 'bundleConsoleAssets'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.withType(Test).configureEach { defaultCharacterEncoding = 'UTF-8' }
+dependencies {
+    implementation files('libs/yatori-engine.aar')
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}

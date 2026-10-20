@@ -1,0 +1,1 @@
+"""Chaoxing Study Console."""

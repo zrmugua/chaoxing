@@ -1,0 +1,14 @@
+[project]
+name = "chaoxing-console"
+version = "0.4.0"
+description = "学习通 Web 管理平台与 Yatori 执行核心"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11,<4.0"
+dynamic = ["dependencies"]
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}

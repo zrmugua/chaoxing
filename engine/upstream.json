@@ -1,0 +1,198 @@
+{
+  "repository": "https://github.com/yatori-dev/yatori-go-core",
+  "commit": "cf6134fdb2bd0640758216d03c947a2a13b2b16a",
+  "license": "MIT",
+  "packages": [
+    "api/xuexitong",
+    "models/ctype",
+    "que-core/aiq",
+    "que-core/external",
+    "que-core/qentity",
+    "que-core/qtype",
+    "utils",
+    "utils/log",
+    "utils/qutils"
+  ],
+  "files": {
+    "LICENSE": {
+      "upstream_sha256": "cab1ea98c1383e82a7f00f9ae327f0d350056386430c027c4b50ada2fbb5ecb4",
+      "packaged_sha256": "cab1ea98c1383e82a7f00f9ae327f0d350056386430c027c4b50ada2fbb5ecb4"
+    },
+    "api/xuexitong/CardEntity.go": {
+      "upstream_sha256": "6c366225f50373d75d8848c470126213944f4c13004934693527089a5612e018",
+      "packaged_sha256": "6c366225f50373d75d8848c470126213944f4c13004934693527089a5612e018"
+    },
+    "api/xuexitong/CourseEntity.go": {
+      "upstream_sha256": "1da9ca2bcfa1e1417903264f573720f17cdca5cfcc54d81a02af44288cf83b94",
+      "packaged_sha256": "1da9ca2bcfa1e1417903264f573720f17cdca5cfcc54d81a02af44288cf83b94"
+    },
+    "api/xuexitong/XXTStandardQuestion.go": {
+      "upstream_sha256": "b659a45c6bba68612fec42204f16e199d34b972f6a2858b571778d68308bd7c4",
+      "packaged_sha256": "b659a45c6bba68612fec42204f16e199d34b972f6a2858b571778d68308bd7c4"
+    },
+    "api/xuexitong/XueXiTongAIApi.go": {
+      "upstream_sha256": "2adb4cb4ba24b05bb8e15b6653b104a884fbfbb7c7273e41d81d8c5b6f46350c",
+      "packaged_sha256": "789436e2d6e08117f3f4de52ec415764388b8f0d4751ab40acd9f01ccc6d0f37"
+    },
+    "api/xuexitong/XueXiTongAudioApi.go": {
+      "upstream_sha256": "b7266a2761a5955a9848b40d8705cec03782839488c74963d79fa09fbfcd6b6b",
+      "packaged_sha256": "3ad7770926c84b3772c14721ef9f84aebe8fe7fa8c9fbdc091e060ee1d5a3fa2"
+    },
+    "api/xuexitong/XueXiTongBBsApi.go": {
+      "upstream_sha256": "7cf0f580b4add11cf4601ac4200d37807d8261e2231fd55b11328c65175a41e2",
+      "packaged_sha256": "1205a0faa83fb4546869efefb5c784caaac9eb74d30276676b26649f4762c74c"
+    },
+    "api/xuexitong/XueXiTongCardApi.go": {
+      "upstream_sha256": "0e5475bdb51dbee35e935789c39da8e45a89ef1a1e77742ca547fb4ea6224cec",
+      "packaged_sha256": "7b6f0069b52e352f513913393531d81be0bf420557994a249a5cc823babee366"
+    },
+    "api/xuexitong/XueXiTongChapterApi.go": {
+      "upstream_sha256": "19ea7c37fe35e80c26377506548ecef8616b8db8a00290fcf2405151800bba8a",
+      "packaged_sha256": "462ea723eb0d5e3f37850d539a737f66a018212acfc9b04b2bc35838d378411a"
+    },
+    "api/xuexitong/XueXiTongChapterTestApi.go": {
+      "upstream_sha256": "327a10427e5308059a3c1d837a86607d2dff554348820f59646246d5cadff645",
+      "packaged_sha256": "ff04951185a91419167f58ce1769566dd0beac89d9b5f86fbc97ff11c9afdbe8"
+    },
+    "api/xuexitong/XueXiTongCourseApi.go": {
+      "upstream_sha256": "9bac337fab70795300fa2c2bdfc64aaf4233cd0949dd04363d8c9c61ac9e5665",
+      "packaged_sha256": "9b3c79ac45a1a2629bea0f7790cd578fbebc95a95cac169b7eef88f9eea5f70e"
+    },
+    "api/xuexitong/XueXiTongExamApi.go": {
+      "upstream_sha256": "748eb46736f991f72e316ba8aa690f4b91feb0d65e361a4509f3b9d81ab94468",
+      "packaged_sha256": "f32ffa805fb2f37ab32c120354ebba906f9ceccebc0b0fa3396f554f7202e045"
+    },
+    "api/xuexitong/XueXiTongFaceApi.go": {
+      "upstream_sha256": "60c20bab034f7be2ce6318124419402c41f5f9da69932e0c6c4138ec68c8e655",
+      "packaged_sha256": "2bb7235624f060b98c2ea9bcb4add7ae4ebcd841d405624e55621ef1736852d2"
+    },
+    "api/xuexitong/XueXiTongLoginApi.go": {
+      "upstream_sha256": "a1efc48c5d4754001d28962bfa83864e52df5f7ef2357a9539cd5652b2ca97dc",
+      "packaged_sha256": "104637874a4482093757a9a3dede98af86b8ad864c1eea51c5f4c6a540ccf38c"
+    },
+    "api/xuexitong/XueXiTongReadApi.go": {
+      "upstream_sha256": "594eda702f7fb0077307cacf4f3f30ab42fdd2004fa9d964887988773b27ba1c",
+      "packaged_sha256": "8cf24cb9ec729d88c6a964b0a26b5e200a143c2e77ff2c6f58d7bcb38392bded"
+    },
+    "api/xuexitong/XueXiTongVerCodeApi.go": {
+      "upstream_sha256": "e7be03cf5adc4290feefb25d22d08a4bb3fcd25fd523db3469645b07613d8dd1",
+      "packaged_sha256": "c9ec6be2620ec8d332c83a266459cf73adf5fa1c7a5f6cd80abaa41bae3d5682"
+    },
+    "api/xuexitong/XueXiTongWorkApi.go": {
+      "upstream_sha256": "44579f4704e3a283bcb8721e4d9eaf05e20ed32b68defd814576df980a65180f",
+      "packaged_sha256": "019cc686433b71f757172a3435fb8764ec353ff8b24dd135480166b1082d8729"
+    },
+    "api/xuexitong/captcha_tls.go": {
+      "upstream_sha256": "ce21875582493cd99eea05b15f3c8866ca36efebc9a137a1ba2d367c57561384",
+      "packaged_sha256": "69938ba22d95ba76e9331fe672fec6e2f19e2e1a5a122dfaa3eabeb20c6a1fd6"
+    },
+    "api/xuexitong/card_entity_test.go": {
+      "upstream_sha256": "ebec6d85dfc85140a1e19f3b70bc0aa3e27c080173e4153b23f3578f6fba6371",
+      "packaged_sha256": "ebec6d85dfc85140a1e19f3b70bc0aa3e27c080173e4153b23f3578f6fba6371"
+    },
+    "api/xuexitong/platform_transport.go": {
+      "upstream_sha256": null,
+      "packaged_sha256": "76d4c230aa509aff7ad6ae829b1678fd1815d207c2cfea7ad75b0593949ce18a"
+    },
+    "api/xuexitong/request_boundary.go": {
+      "upstream_sha256": "d6f3e499997a44fbe4df8d6b94729dbb9afef2443697855ce62f0703aa490787",
+      "packaged_sha256": "d6f3e499997a44fbe4df8d6b94729dbb9afef2443697855ce62f0703aa490787"
+    },
+    "api/xuexitong/request_boundary_test.go": {
+      "upstream_sha256": "d8d43fc8ca433b76b51ef9563370588965b31fe0967c8d203d37a8b78c6bef64",
+      "packaged_sha256": "d8d43fc8ca433b76b51ef9563370588965b31fe0967c8d203d37a8b78c6bef64"
+    },
+    "api/xuexitong/security_transport_test.go": {
+      "upstream_sha256": "7b49062e4eb7797e1e7f47393baef45a203dd2c9a61780ceb5eb7ad603dbea56",
+      "packaged_sha256": "7b49062e4eb7797e1e7f47393baef45a203dd2c9a61780ceb5eb7ad603dbea56"
+    },
+    "go.mod": {
+      "upstream_sha256": "a0a7bb50529047ae35cdeb593d692a7f6dbbb3de18f6761fe15134d65457e786",
+      "packaged_sha256": "a0a7bb50529047ae35cdeb593d692a7f6dbbb3de18f6761fe15134d65457e786"
+    },
+    "go.sum": {
+      "upstream_sha256": "5a0cee9a009b828460bbcf57e469779691eb37567ef131492436357e003c5d6d",
+      "packaged_sha256": "5a0cee9a009b828460bbcf57e469779691eb37567ef131492436357e003c5d6d"
+    },
+    "models/ctype/AiType.go": {
+      "upstream_sha256": "72e0f7a3d0e83e54de9492b21f55e0046f64c117fe923a09f9bb522e93af75e7",
+      "packaged_sha256": "72e0f7a3d0e83e54de9492b21f55e0046f64c117fe923a09f9bb522e93af75e7"
+    },
+    "models/ctype/CardType.go": {
+      "upstream_sha256": "f23199402918d3b3a44b07fc9c4a6816ad00ed4afe7365b6f90c3b8199dd5d15",
+      "packaged_sha256": "f23199402918d3b3a44b07fc9c4a6816ad00ed4afe7365b6f90c3b8199dd5d15"
+    },
+    "que-core/aiq/AiQuestion.go": {
+      "upstream_sha256": "c21b8f6986cfe6adf17c2350c4b378b6d096af9c7f7ea990a77ba41e5044c9b0",
+      "packaged_sha256": "c21b8f6986cfe6adf17c2350c4b378b6d096af9c7f7ea990a77ba41e5044c9b0"
+    },
+    "que-core/aiq/QuestionMessage.go": {
+      "upstream_sha256": "19fe27595120b6d674b07a1e09d5c8b284e8b280781ab262ea2c72e58d9c97f8",
+      "packaged_sha256": "19fe27595120b6d674b07a1e09d5c8b284e8b280781ab262ea2c72e58d9c97f8"
+    },
+    "que-core/external/ExternalQuestion.go": {
+      "upstream_sha256": "64a92bf85bea1c8c09562c3a69fc0987b741898da0f75362f79ff4872bbc6e47",
+      "packaged_sha256": "64a92bf85bea1c8c09562c3a69fc0987b741898da0f75362f79ff4872bbc6e47"
+    },
+    "que-core/external/FreeQuestion.go": {
+      "upstream_sha256": "deb895af78b052513756bf3ec93055006057ee2dff5afeb08cb2fa74d15de7d4",
+      "packaged_sha256": "deb895af78b052513756bf3ec93055006057ee2dff5afeb08cb2fa74d15de7d4"
+    },
+    "que-core/qentity/Question.go": {
+      "upstream_sha256": "f7285ee6ed1a3b1aad089b55663e16eedbd42bb7f916bc97651f0f744aca8ac0",
+      "packaged_sha256": "f7285ee6ed1a3b1aad089b55663e16eedbd42bb7f916bc97651f0f744aca8ac0"
+    },
+    "que-core/qtype/QuestionType.go": {
+      "upstream_sha256": "aee09445ca9953b02d64ff83bff4bfdf2ad7c7e94e71006da2852b97c119d7b3",
+      "packaged_sha256": "aee09445ca9953b02d64ff83bff4bfdf2ad7c7e94e71006da2852b97c119d7b3"
+    },
+    "utils/CqieEncrypt.go": {
+      "upstream_sha256": "6e74c05504d8273cd6714e33ba849bd62e34bae655cbe913b58c490291109d09",
+      "packaged_sha256": "6e74c05504d8273cd6714e33ba849bd62e34bae655cbe913b58c490291109d09"
+    },
+    "utils/FileUtils.go": {
+      "upstream_sha256": "5ee03d1623fa460c4fc965bd04c31cfa61382ede52ee9852913c7e0b325f4fb1",
+      "packaged_sha256": "5ee03d1623fa460c4fc965bd04c31cfa61382ede52ee9852913c7e0b325f4fb1"
+    },
+    "utils/FuncUtils.go": {
+      "upstream_sha256": "cb628f79d3b8be6933dffb88716042e502c4fdf464d10551aac88c920b2e7755",
+      "packaged_sha256": "cb628f79d3b8be6933dffb88716042e502c4fdf464d10551aac88c920b2e7755"
+    },
+    "utils/HttpUtils.go": {
+      "upstream_sha256": "edeee403c9ff7cec2cf54a35128f32d08a87077ce5c8328a3955c88e9ba99512",
+      "packaged_sha256": "edeee403c9ff7cec2cf54a35128f32d08a87077ce5c8328a3955c88e9ba99512"
+    },
+    "utils/ImageUtils.go": {
+      "upstream_sha256": "4be8b892072b5de651e398615c7bfcfcce090614a7dac3c7b2ba37cd26c7bde3",
+      "packaged_sha256": "4be8b892072b5de651e398615c7bfcfcce090614a7dac3c7b2ba37cd26c7bde3"
+    },
+    "utils/UAUtils.go": {
+      "upstream_sha256": "cb7c75363ad6348d042d3799785066b5ca491b5908f47443c4d6750cca424113",
+      "packaged_sha256": "cb7c75363ad6348d042d3799785066b5ca491b5908f47443c4d6750cca424113"
+    },
+    "utils/XueXiTParseWorkUtils.go": {
+      "upstream_sha256": "147c695a9d2853d336c34531a3e5d576c81e371402f5ec3d9778b324af48a135",
+      "packaged_sha256": "147c695a9d2853d336c34531a3e5d576c81e371402f5ec3d9778b324af48a135"
+    },
+    "utils/YatoriCoreInit.go": {
+      "upstream_sha256": "5b2f9b343782a952ec5b3131483c7c15479668925d51dd405d64e3b3dafe429b",
+      "packaged_sha256": "48fc66e4dd7d5c9791c11e73893d0f94373e06c544f71b9258a545e36145c007"
+    },
+    "utils/log/ColorChar.go": {
+      "upstream_sha256": "921b1901fb7f65f88540d3284758faa5e73749a5d4b85a7f3cefb2a5bfcef2d0",
+      "packaged_sha256": "921b1901fb7f65f88540d3284758faa5e73749a5d4b85a7f3cefb2a5bfcef2d0"
+    },
+    "utils/log/LogUtils.go": {
+      "upstream_sha256": "3762ecb8144bd8494405d9d9ce2c58bffeb038083add43eccf312b16dee3189c",
+      "packaged_sha256": "3762ecb8144bd8494405d9d9ce2c58bffeb038083add43eccf312b16dee3189c"
+    },
+    "utils/qutils/qutils.go": {
+      "upstream_sha256": "361132ba22dc9d9a5ea062642a62de59c493af49fc39815d422b0048cd608edf",
+      "packaged_sha256": "361132ba22dc9d9a5ea062642a62de59c493af49fc39815d422b0048cd608edf"
+    },
+    "utils/qutils/qutils_test.go": {
+      "upstream_sha256": "76795999a298dd4735bf333d832a3ac8aace075118c635c4fb6e5647b901e420",
+      "packaged_sha256": "76795999a298dd4735bf333d832a3ac8aace075118c635c4fb6e5647b901e420"
+    }
+  }
+}
