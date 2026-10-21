@@ -1,0 +1,2 @@
+# Preserve the bytes used by the original Console embedded asset manifest.
+third_party/yatori-go-console/config/logo.txt -text
