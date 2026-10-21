@@ -25,8 +25,12 @@ class AccountLearning:
             row = self.ensure(connection, account_id)
             account = dict(connection.execute("SELECT id,label,status,checked_at,created_at FROM accounts WHERE id=?", (account_id,)).fetchone())
             courses = [dict(course) for course in connection.execute("""SELECT c.id,c.account_id,c.remote_id,c.clazz_id,c.title,c.teacher,c.synced_at,c.progress_synced_at,c.available,
-                COUNT(ch.id) AS chapter_count,COALESCE(SUM(ch.confirmed),0) AS confirmed_chapters
-                FROM courses c LEFT JOIN chapters ch ON ch.course_id=c.id WHERE c.account_id=? GROUP BY c.id ORDER BY c.id""", (account_id,))]
+                COUNT(ch.id) AS chapter_count,COALESCE(SUM(ch.confirmed),0) AS confirmed_chapters,
+                refresh_task.state AS progress_refresh_state,refresh_task.message AS progress_refresh_message
+                FROM courses c LEFT JOIN chapters ch ON ch.course_id=c.id
+                LEFT JOIN tasks refresh_task ON refresh_task.id=(SELECT id FROM tasks WHERE course_id=c.id AND kind='sync_chapters' ORDER BY id DESC LIMIT 1)
+                WHERE c.account_id=? GROUP BY c.id ORDER BY c.id""", (account_id,))]
+            list_refresh = connection.execute("SELECT state,message FROM tasks WHERE account_id=? AND kind IN ('login','sync_courses') ORDER BY id DESC LIMIT 1", (account_id,)).fetchone()
             task = connection.execute("SELECT * FROM tasks WHERE id=?", (row["current_task_id"],)).fetchone()
             heartbeat = connection.execute("SELECT heartbeat FROM runtime WHERE id=1").fetchone()
         for course in courses:
@@ -41,6 +45,8 @@ class AccountLearning:
                 "current_task_id": row["current_task_id"], "running_course_titles": running_titles,
                 "active_course_titles": json.loads(row["active_course_titles"]) if running_titles else [],
                 "latest_activity": json.loads(row["latest_activity"]) if row["latest_activity"] else None,
+                "courses_refresh_state": list_refresh["state"] if list_refresh else None,
+                "courses_refresh_message": list_refresh["message"] if list_refresh else None,
                 "refresh_pending": bool(row["refresh_pending"]), "refresh_error": row["refresh_error"]}
 
     def validate_selection(self, connection, account_id, course_ids):

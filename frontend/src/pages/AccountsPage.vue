@@ -70,8 +70,8 @@ async function save() {
       close()
       await router.push(`/accounts/${created.id}`)
       try {
-        await post(`/accounts/${created.id}/learning/action`, { action: 'refresh' })
-        message.success('账号已添加，正在登录并同步课程与进度')
+        await post(`/accounts/${created.id}/sync`)
+        message.success('账号已添加，正在登录并同步课程列表')
       } catch (e) {
         message.warning(`账号已添加，自动同步暂未启动：${errorText(e)}。可在账号页重新同步。`)
       }
@@ -149,6 +149,12 @@ function remove(account: Account) {
           </div>
         </RouterLink>
         <div class="learning-account-actions">
+          <RouterLink
+            :to="{ path: `/accounts/${account.id}`, query: { settings: 'learning' } }"
+            class="text-link account-settings-link"
+            :aria-label="`${account.label} · 账号学习配置`"
+            >账号学习配置</RouterLink
+          >
           <NButton size="small" quaternary @click="open(account)">编辑</NButton
           ><NButton size="small" quaternary type="error" @click="remove(account)">删除</NButton>
         </div>
@@ -255,7 +261,12 @@ function remove(account: Account) {
 }
 .learning-account-actions {
   display: flex;
+  align-items: center;
   gap: 2px;
+}
+.account-settings-link {
+  padding: 8px;
+  white-space: nowrap;
 }
 @media (max-width: 650px) {
   .learning-account-row {

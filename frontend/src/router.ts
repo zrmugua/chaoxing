@@ -5,7 +5,7 @@ export default createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/accounts',
+      redirect: '/dashboard',
     },
     {
       path: '/accounts',
@@ -20,7 +20,7 @@ export default createRouter({
     {
       path: '/dashboard',
       component: () => import('./pages/DashboardPage.vue'),
-      meta: { title: '运行概况', description: '账号、课程与后台运行概况' },
+      meta: { title: '首页统计', description: '账号、课程与后台执行统计' },
     },
     {
       path: '/courses',

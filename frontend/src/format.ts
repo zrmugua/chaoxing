@@ -42,6 +42,7 @@ const labels: Record<string, string> = {
   login: '登录验证',
   sync: '同步课程',
   sync_courses: '同步课程',
+  refresh_account: '同步课程与进度',
   course_sync: '同步章节',
   sync_chapters: '同步章节',
   sync_assessments: '同步作业与考试',

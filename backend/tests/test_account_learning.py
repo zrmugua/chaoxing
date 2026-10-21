@@ -148,6 +148,10 @@ def test_queries_interrupt_learning_then_resume_latest_intent(platform, query_ki
     if query_kind != "sync_courses":
         assert row["courses"][0]["progress"] == 50
         assert row["courses"][0]["progress_synced_at"] is not None
+    if query_kind == "sync_chapters":
+        assert row["courses"][0]["progress_refresh_state"] == "succeeded"
+        assert row["courses"][1]["progress"] is None
+        assert row["courses"][1]["progress_refresh_state"] is None
     assert worker.claim()["kind"] == "study"
     assert called == (["courses", "chapters", "chapters"] if query_kind == "refresh_account" else ["courses" if query_kind == "sync_courses" else "chapters"])
 
@@ -294,3 +298,64 @@ def test_delayed_launch_preserves_accepted_rule_snapshot(platform, operation):
         next_task = worker.claim()
     options = json.loads(next_task["checkpoint"])["options"]
     assert options["answer_mode"] == "off" and options["submit_mode"] == "save" and options["work"] is False
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_course_refresh_reports_only_target_and_preserves_other_progress(platform, fails):
+    config, _, client, account, first, second, service = fixture_account(platform)
+    service.save_chapters(first, [{"id": "1", "title": "一"}, {"id": "2", "title": "二", "has_finished": True}])
+    service.save_chapters(second, [{"id": "1", "title": "已完成", "has_finished": True}])
+    before = service.learning.snapshot(account)
+    calls = []
+    class Process:
+        failing = fails
+        def __init__(self, _): pass
+        def run(self, account_id, value, proxy, secrets, control, log, mode, course):
+            control()
+            calls.append((mode, course["courseId"]))
+            if self.failing:
+                raise ConsoleError("该课程进度查询失败")
+            return [{"id": "1", "title": "一", "has_finished": True}, {"id": "2", "title": "二", "has_finished": True}]
+    url = f"/api/courses/{first}/sync"
+    assert client.post(url).status_code == 200
+    queued = client.get(f"/api/accounts/{account}/learning").json()
+    assert queued["courses"][0]["progress_refresh_state"] == "queued"
+    assert queued["courses"][1]["progress_refresh_state"] is None
+    assert client.post(url).status_code == 409
+    worker = Worker(config, Process)
+    worker.run_task(worker.claim())
+    result = service.learning.snapshot(account)
+    assert calls == [("chapters", "100")]
+    assert result["courses"][1] == before["courses"][1]
+    assert result["courses"][0]["progress_refresh_state"] == ("failed" if fails else "succeeded")
+    assert result["courses"][0]["progress"] == (50 if fails else 100)
+    if fails:
+        assert result["courses"][0]["progress_synced_at"] == before["courses"][0]["progress_synced_at"]
+        assert result["courses"][0]["progress_refresh_message"] == "该课程进度查询失败"
+        Process.failing = False
+        assert client.post(url).status_code == 200
+        worker.run_task(worker.claim())
+        assert service.learning.snapshot(account)["courses"][0]["progress_refresh_state"] == "succeeded"
+
+
+def test_sync_course_list_keeps_chapter_progress_untouched(platform):
+    config, _, client, account, first, second, service = fixture_account(platform)
+    service.save_chapters(first, [{"id": "1", "title": "已完成", "has_finished": True}])
+    before = service.learning.snapshot(account)
+    calls = []
+    class Process:
+        def __init__(self, _): pass
+        def run(self, account_id, value, proxy, secrets, control, log, mode, course):
+            calls.append(mode)
+            assert mode == "courses" and course is None
+            return [{"courseId": "100", "clazzId": "200", "title": "课程一"}, {"courseId": "101", "clazzId": "201", "title": "课程二"}]
+    assert client.post(f"/api/accounts/{account}/sync").status_code == 200
+    assert service.learning.snapshot(account)["courses_refresh_state"] == "queued"
+    worker = Worker(config, Process)
+    worker.run_task(worker.claim())
+    result = service.learning.snapshot(account)
+    assert result["courses_refresh_state"] == "succeeded" and calls == ["courses"]
+    for old, current in zip(before["courses"], result["courses"]):
+        assert current["progress"] == old["progress"]
+        assert current["progress_synced_at"] == old["progress_synced_at"]
+        assert current["progress_refresh_state"] is None

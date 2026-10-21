@@ -116,6 +116,31 @@ export function useAccountLearning(accountId: Ref<number>) {
     }
   }
 
+  async function synchronize(courseId?: number) {
+    if (!data.value || busy.value) return false
+    const current = generation
+    const id = accountId.value
+    busy.value = courseId === undefined ? 'sync_courses' : `sync_course:${courseId}`
+    error.value = ''
+    controller.abort()
+    controller = new AbortController()
+    try {
+      await post(courseId === undefined ? `/accounts/${id}/sync` : `/courses/${courseId}/sync`)
+      if (!alive || current !== generation) return false
+      const next = await api<AccountLearning>(`/accounts/${id}/learning`, {
+        signal: controller.signal,
+      })
+      if (!alive || current !== generation) return false
+      accept(next)
+      return true
+    } catch (e) {
+      if (alive && current === generation) error.value = errorText(e)
+      return false
+    } finally {
+      if (alive && current === generation) busy.value = ''
+    }
+  }
+
   function restore() {
     if (!data.value) return
     selection.value = [...data.value.selected_course_ids]
@@ -173,6 +198,7 @@ export function useAccountLearning(accountId: Ref<number>) {
     updatedAt,
     refresh,
     perform,
+    synchronize,
     restore,
   }
 }

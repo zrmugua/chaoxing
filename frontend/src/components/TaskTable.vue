@@ -68,11 +68,17 @@ function stop(task: Task) {
             <NTag :type="statusType(task.state)" size="small" round :bordered="false">{{
               label(task.state)
             }}</NTag>
-            <div v-if="!compact" class="cell-subtitle">
-              已启动 {{ task.attempts }} 次
-            </div>
+            <div v-if="!compact" class="cell-subtitle">已启动 {{ task.attempts }} 次</div>
           </td>
-          <td>{{ task.kind === 'study' ? '查看原始日志' : task.server_state === 'confirmed' ? '查询完成' : '等待查询结果' }}</td>
+          <td>
+            {{
+              task.kind === 'study'
+                ? '查看原始日志'
+                : task.server_state === 'confirmed'
+                  ? '查询完成'
+                  : '等待查询结果'
+            }}
+          </td>
           <td v-if="!compact" class="cell-date">{{ date(task.created_at, true) }}</td>
           <td class="actions-cell">
             <div class="row-actions">
@@ -132,6 +138,6 @@ function stop(task: Task) {
   <EmptyState
     v-else
     title="还没有任务"
-    description="在账号或课程页面创建任务，执行过程会显示在这里。"
+    description="进入账号选择课程并开始学习，执行过程会显示在这里。"
   />
 </template>

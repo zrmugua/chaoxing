@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS question_sets(id INTEGER PRIMARY KEY, course_id INTEG
  chapter_id TEXT NOT NULL, job_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at REAL NOT NULL,
  UNIQUE(course_id,chapter_id,job_id));
 CREATE INDEX IF NOT EXISTS tasks_queue ON tasks(state, next_run_at);
+CREATE INDEX IF NOT EXISTS tasks_course_queries ON tasks(course_id, kind, id);
 INSERT OR IGNORE INTO schema_migrations VALUES(1, unixepoch());
 """
 

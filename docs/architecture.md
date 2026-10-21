@@ -1,6 +1,6 @@
 # 项目架构
 
-Vue 3 / Naive UI 提供账号列表与账号详情，FastAPI 提供管理员鉴权、学习清单和配置 API，SQLite 保存账号学习状态、执行历史和日志。Android 前台服务承载 Web 服务与 Worker。Worker 管理原版 yatori-go-console 进程的生命周期。
+Vue 3 / Naive UI 提供首页统计、账号列表与账号详情，FastAPI 提供管理员鉴权、学习清单和配置 API，SQLite 保存账号学习状态、执行历史和日志。Android 前台服务承载 Web 服务与 Worker。Worker 管理原版 yatori-go-console 进程的生命周期。
 
 | 路径 | 职责 |
 | --- | --- |
@@ -23,4 +23,4 @@ Android 将 `libyatori_console.so` 作为可执行文件打包到 `nativeLibrary
 
 暂停与重启后恢复均通过重新启动 Console 完成。服务重启后，正在学习的账号保持暂停。进程退出成功只标记「执行结束」；章节完成比例和同步时间来自查询结果。当前课程从 Console 明确的课程活动日志提取，多课程模式支持同时展示。0.7.0 迁移已有账号的学习清单并保留历史。管理 API 保留账号加密、CSRF、登录限流和局域网来源校验。
 
-仓库保留 0.5.x 适配器源码与回归样本用于历史兼容研究，位于 `engine/runtime`、`engine/consolelogic` 与 `backend/tests/legacy_worker.py`。0.7.0 的 Worker 与 Android 构建使用上述原版 Console 路径。
+仓库保留 0.5.x 适配器源码与回归样本用于历史兼容研究，位于 `engine/runtime`、`engine/consolelogic` 与 `backend/tests/legacy_worker.py`。0.7.1 的 Worker 与 Android 构建使用上述原版 Console 路径。

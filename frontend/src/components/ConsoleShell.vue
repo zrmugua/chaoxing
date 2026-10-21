@@ -5,6 +5,7 @@ import { NButton, NTooltip, useMessage } from 'naive-ui'
 import {
   Clock3,
   GraduationCap,
+  LayoutDashboard,
   LogOut,
   Moon,
   PanelLeftClose,
@@ -27,8 +28,9 @@ const mobileNav = ref<HTMLElement | null>(null)
 const title = computed(() => String(route.meta.title || '仪表盘'))
 const description = computed(() => String(route.meta.description || '学习管理工作台'))
 const items = [
+  { path: '/dashboard', title: '首页统计', icon: LayoutDashboard },
   { path: '/accounts', title: '学习账号', icon: UsersRound },
-  { path: '/settings', title: '学习设置', icon: Settings2 },
+  { path: '/settings', title: '系统设置', icon: Settings2 },
   { path: '/runs', title: '运行记录', icon: Clock3 },
   { path: '/logs', title: '系统日志', icon: Terminal },
 ]

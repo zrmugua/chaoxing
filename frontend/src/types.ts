@@ -36,6 +36,8 @@ export interface LearningCourse extends Course {
   confirmed_chapters: number
   progress: number | null
   progress_synced_at: Timestamp | null
+  progress_refresh_state: string | null
+  progress_refresh_message: string | null
 }
 export type LearningAction = 'start' | 'pause' | 'resume' | 'stop' | 'refresh'
 export interface AccountLearning {
@@ -64,6 +66,8 @@ export interface AccountLearning {
   current_task_id: number | null
   refresh_pending: boolean
   refresh_error: string | null
+  courses_refresh_state: string | null
+  courses_refresh_message: string | null
 }
 export interface Task {
   id: number

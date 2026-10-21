@@ -34,7 +34,7 @@ getprop ro.product.cpu.abilist
 在 UFI Tool 提供的安卓终端中，进入有权限的 shell 后可以安装并打开应用。文件路径按实际上传位置调整：
 
 ```sh
-pm install -r /sdcard/Download/chaoxing-console-0.7.0.apk
+pm install -r /sdcard/Download/chaoxing-console-0.7.1.apk
 am start -n cn.zrmug.chaoxing/.MainActivity --ez start_service true
 ```
 
@@ -82,13 +82,13 @@ APK 包含平台 GPL-3.0、Yatori MIT、Go、Python、Chaquopy 和前端组件�
 
 Gradle 生成的 release APK 为 unsigned。分发前使用 Android SDK 的 `apksigner` 和维护者密钥签名，再执行 `apksigner verify --verbose --print-certs <已签名APK>` 核对签名。覆盖升级的证书必须与已安装版本一致。
 
-## 0.7.0 安装包选择
+## 0.7.1 安装包选择
 
 | 安装包 | 适用情况 | 大小 |
 | --- | --- | --- |
-| `chaoxing-console-0.7.0.apk` | 通用，支持 ARM32 / ARM64 | 约 81 MiB |
-| `chaoxing-console-0.7.0-arm64-v8a.apk` | 支持 64 位 Android 的设备 | 约 59 MiB |
-| `chaoxing-console-0.7.0-armeabi-v7a.apk` | 32 位 Android 设备 | 约 59 MiB |
+| `chaoxing-console-0.7.1.apk` | 通用，支持 ARM32 / ARM64 | 约 81 MiB |
+| `chaoxing-console-0.7.1-arm64-v8a.apk` | 支持 64 位 Android 的设备 | 约 59 MiB |
+| `chaoxing-console-0.7.1-armeabi-v7a.apk` | 32 位 Android 设备 | 约 59 MiB |
 
 可在设备终端执行 `getprop ro.product.cpu.abilist` 查看系统支持的架构；不知道架构时使用通用包。各包使用相同应用 ID、版本和签名，支持覆盖升级。
 

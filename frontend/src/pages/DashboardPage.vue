@@ -80,13 +80,14 @@ function refresh() {
 
 <template>
   <PageHeading
-    title="任务概况"
-    description="查看任务执行情况与后台运行状态。"
-    eyebrow="TASK OVERVIEW"
+    title="首页统计"
+    description="查看账号、课程、执行状态与历史统计，进入账号管理学习。"
+    eyebrow="LEARNING OVERVIEW"
   >
     <NButton :loading="summary.loading.value" @click="refresh">
       <template #icon><RefreshCw :size="15" /></template>刷新概况
     </NButton>
+    <RouterLink to="/accounts" class="text-link">进入学习账号<ArrowRight :size="15" /></RouterLink>
   </PageHeading>
   <NAlert v-if="summary.error.value || tasks.error.value" type="error" class="mb-20">
     {{ summary.error.value || tasks.error.value }}
@@ -208,7 +209,7 @@ function refresh() {
       <span class="shortcut-icon"><UsersRound :size="19" /></span>
       <div class="shortcut-copy">
         <h3>账号管理</h3>
-        <p>添加账号与登录验证</p>
+        <p>课程选择与账号学习配置</p>
       </div>
       <ArrowRight :size="16" />
     </RouterLink>

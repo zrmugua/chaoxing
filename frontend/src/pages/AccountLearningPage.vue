@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   NAlert,
   NButton,
@@ -28,7 +28,7 @@ import {
 } from 'lucide-vue-next'
 import { api, errorText } from '../api'
 import { date, progress, statusType } from '../format'
-import type { Chapter, LearningAction, LearningCourse, StudySettings } from '../types'
+import type { Chapter, LearningCourse, StudySettings } from '../types'
 import PageHeading from '../components/PageHeading.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LearningRulesPanel from '../components/LearningRulesPanel.vue'
@@ -36,6 +36,7 @@ import AccountLogs from '../components/AccountLogs.vue'
 import { useAccountLearning } from '../composables/useAccountLearning'
 
 const route = useRoute()
+const router = useRouter()
 const accountId = computed(() => Number(route.params.id))
 const {
   data,
@@ -49,6 +50,7 @@ const {
   updatedAt,
   refresh,
   perform,
+  synchronize,
   restore,
 } = useAccountLearning(accountId)
 const message = useMessage()
@@ -141,6 +143,18 @@ const unavailableSelection = computed(() =>
   ),
 )
 const activeTitles = computed(() => data.value?.active_course_titles || [])
+const queryPending = (state?: string | null) =>
+  ['queued', 'recovering', 'running', 'pausing', 'stopping'].includes(state || '')
+const listRefreshing = computed(
+  () => queryPending(data.value?.courses_refresh_state) || busy.value === 'sync_courses',
+)
+const courseRefreshing = (course: LearningCourse) =>
+  queryPending(course.progress_refresh_state) || busy.value === `sync_course:${course.id}`
+function courseRefreshLabel(course: LearningCourse) {
+  if (['queued', 'recovering'].includes(course.progress_refresh_state || '')) return '等待刷新'
+  if (['pausing', 'stopping'].includes(course.progress_refresh_state || '')) return '正在停止'
+  return courseRefreshing(course) ? '刷新中' : '刷新进度'
+}
 const paperTypes = (config: StudySettings) =>
   [config.chapter_test && '章节测验', config.work && '课程作业', config.exam && '课程考试']
     .filter(Boolean)
@@ -172,8 +186,16 @@ async function loadRules() {
 }
 async function rulesSaved() {
   settingsPending.value = true
-  showRules.value = false
+  setRulesOpen(false)
   await loadRules()
+}
+function setRulesOpen(show: boolean) {
+  showRules.value = show
+  if (!show && route.query.settings === 'learning') {
+    const query = { ...route.query }
+    delete query.settings
+    void router.replace({ query })
+  }
 }
 async function executeIntent(kind: RunIntent, fingerprint?: string) {
   const id = accountId.value
@@ -240,11 +262,16 @@ async function prepare(kind: RunIntent) {
     if (id === accountId.value) preparing.value = false
   }
 }
-async function action(kind: LearningAction) {
+async function action(kind: 'pause' | 'stop') {
   if (await perform(kind)) {
-    if (kind === 'refresh') message.success('正在同步课程和平台章节进度')
-    else message.success(kind === 'pause' ? '已请求暂停学习' : '已请求停止学习')
+    message.success(kind === 'pause' ? '已请求暂停学习' : '已请求停止学习')
   }
+}
+async function syncCourses() {
+  if (await synchronize()) message.success('正在同步课程列表')
+}
+async function refreshCourse(course: LearningCourse) {
+  if (await synchronize(course.id)) message.success(`正在刷新「${course.title}」的章节进度`)
 }
 async function openChapters(course: LearningCourse) {
   chapterCourse.value = course
@@ -277,6 +304,22 @@ watch(
   },
   { immediate: true },
 )
+watch(
+  [accountId, () => route.query.settings],
+  ([, section]) => {
+    showRules.value = section === 'learning'
+  },
+  { immediate: true },
+)
+watch(
+  () =>
+    data.value?.courses.find((course) => course.id === chapterCourse.value?.id)?.progress_synced_at,
+  (timestamp) => {
+    const current = chapterCourse.value
+    const updated = data.value?.courses.find((course) => course.id === current?.id)
+    if (current && updated && timestamp !== current.progress_synced_at) void openChapters(updated)
+  },
+)
 </script>
 
 <template>
@@ -293,8 +336,8 @@ watch(
           ><template #icon><Clock3 :size="15" /></template>运行记录</NButton
         ></RouterLink
       >
-      <NButton :disabled="!data || blocked" @click="showRules = true"
-        ><template #icon><Settings2 :size="15" /></template>学习规则</NButton
+      <NButton type="primary" secondary :disabled="!data || blocked" @click="setRulesOpen(true)"
+        ><template #icon><Settings2 :size="15" /></template>账号学习配置</NButton
       >
     </PageHeading>
     <NAlert v-if="error" type="error" class="mb-20"
@@ -380,8 +423,8 @@ watch(
           >后台服务离线，请启动后台服务，再继续学习。课程选择可保存。</NAlert
         >
         <p v-if="rules" class="rules-summary">
-          {{ overridden ? '账号专属规则' : '跟随默认规则' }} · {{ videoLabels[rules.video_mode] }} ·
-          {{ answerLabels[rules.answer_mode]
+          {{ overridden ? '账号专属配置' : '跟随系统默认配置' }} ·
+          {{ videoLabels[rules.video_mode] }} · {{ answerLabels[rules.answer_mode]
           }}<template v-if="rules.answer_mode !== 'off' && paperTypes(rules)">
             · {{ paperTypes(rules) }} ·
             {{
@@ -406,21 +449,21 @@ watch(
             <p class="muted">平台进度按已确认完成的章节计算，显示最近一次同步结果。</p>
           </div>
           <NButton
-            :disabled="blocked || data.refresh_pending"
-            :loading="data.refresh_pending || busy === 'refresh'"
-            @click="action('refresh')"
+            :disabled="blocked || listRefreshing || data.refresh_pending"
+            :loading="listRefreshing"
+            @click="syncCourses"
             ><template #icon><RefreshCw :size="15" /></template
-            >{{ data.refresh_pending ? '同步中' : '刷新课程与进度' }}</NButton
+            >{{ listRefreshing ? '同步课程列表中' : '同步课程列表' }}</NButton
           >
         </div>
-        <NAlert v-if="data.refresh_error" type="warning" class="course-alert"
-          >{{ data.refresh_error
-          }}<NButton text :disabled="blocked || data.refresh_pending" @click="action('refresh')"
-            >重新同步</NButton
+        <NAlert v-if="data.courses_refresh_state === 'failed'" type="warning" class="course-alert"
+          >{{ data.courses_refresh_message
+          }}<NButton text :disabled="blocked || listRefreshing" @click="syncCourses"
+            >重新同步课程列表</NButton
           ></NAlert
         >
-        <NAlert v-else-if="data.refresh_pending" type="info" class="course-alert"
-          >正在读取平台课程和章节，完成后更新进度。</NAlert
+        <NAlert v-else-if="listRefreshing" type="info" class="course-alert"
+          >正在读取账号的课程列表。各课程的章节进度可在对应课程行刷新。</NAlert
         >
         <div class="course-selection-tools">
           <NInput
@@ -500,6 +543,22 @@ watch(
             </div>
             <div class="course-sync-info">
               <small>进度同步 {{ date(course.progress_synced_at, true) }}</small
+              ><NButton
+                size="small"
+                secondary
+                :loading="courseRefreshing(course)"
+                :disabled="
+                  blocked || courseRefreshing(course) || !course.available || data.refresh_pending
+                "
+                :aria-label="`${course.title} · 刷新进度`"
+                @click="refreshCourse(course)"
+                ><template #icon><RefreshCw :size="14" /></template
+                >{{ courseRefreshLabel(course) }}</NButton
+              ><small
+                v-if="course.progress_refresh_state === 'failed'"
+                class="course-refresh-error"
+                role="status"
+                >{{ course.progress_refresh_message }}</small
               ><NButton size="small" quaternary @click="openChapters(course)"
                 ><template #icon><BookOpen :size="14" /></template>章节明细</NButton
               >
@@ -509,11 +568,7 @@ watch(
         <EmptyState
           v-else
           :title="
-            search
-              ? '没有匹配的课程'
-              : data.refresh_pending
-                ? '正在同步账号课程'
-                : '课程将在同步后显示'
+            search ? '没有匹配的课程' : listRefreshing ? '正在同步账号课程' : '课程将在同步后显示'
           "
           :description="
             search ? '调整搜索内容，查看其他课程。' : '同步完成后，在这里勾选想学习的课程。'
@@ -560,8 +615,8 @@ watch(
       <AccountLogs :key="accountId" :account-id="accountId" />
     </template>
 
-    <NDrawer v-model:show="showRules" :width="'min(680px, 100vw)'"
-      ><NDrawerContent title="账号学习规则" closable
+    <NDrawer :show="showRules" :width="'min(680px, 100vw)'" @update:show="setRulesOpen"
+      ><NDrawerContent :title="`${data?.account.label || '学习账号'} · 账号学习配置`" closable
         ><LearningRulesPanel
           v-if="showRules"
           :key="accountId"
@@ -599,7 +654,7 @@ watch(
           <EmptyState
             v-if="!chapterLoading && !chapters.length && !chapterError"
             title="章节明细待同步"
-            description="使用账号页的「刷新课程与进度」读取最新章节。" /></NSpin></NDrawerContent
+            description="使用该课程的「刷新进度」按钮读取最新章节。" /></NSpin></NDrawerContent
     ></NDrawer>
     <NModal
       :show="!!review"
@@ -870,6 +925,14 @@ input:focus-visible {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+}
+.course-sync-info .course-refresh-error {
+  color: #b91c1c;
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+:global([data-theme='dark']) .course-sync-info .course-refresh-error {
+  color: #fca5a5;
 }
 .course-save-bar {
   display: flex;
