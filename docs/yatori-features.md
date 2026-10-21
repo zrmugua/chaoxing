@@ -89,6 +89,7 @@ AI 支持 Chat Completions、Responses 和秘塔协议。预设包括 OpenAI、D
 
 ## 参考版本
 
+- [Yatori Console](https://github.com/yatori-dev/yatori-go-console/tree/017711107803f5232fea59446a5b8c801d4ca8b2)：学习通执行流程、日志初始化、章测读取与保存策略，MIT；调用链与当前实现差异见 [Console 执行流程对照](yatori-console.md)。
 - [Yatori 配置生成器](https://github.com/yatori-dev/yatori-config-generate/tree/f4aba3eb3ee53b54478461c964e6dd3929ada531)：配置字段、条件表单和 YAML 格式。
 - [Yatori Android App](https://github.com/yatori-dev/yatori-go-android/tree/cb479146973ac7aca5abedf81dfc53fa4c5d298c)：账号课程配置、多选课程、启动摘要和无空题提交策略，AGPL-3.0-or-later。
 - [Yatori Go 核心](https://github.com/yatori-dev/yatori-go-core/tree/cf6134fdb2bd0640758216d03c947a2a13b2b16a)：学习通 API、DTO 与解析工具，MIT；源码与哈希见 `engine/upstream.json`。

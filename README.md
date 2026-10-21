@@ -51,6 +51,7 @@ python -m pytest -q
 - [架构](docs/architecture.md)：模块边界、进程隔离和任务恢复。
 - [Yatori 更新](UPSTREAM.md)：固定源码版本、受控补丁及更新门禁。
 - [功能与设置](docs/yatori-features.md)：学习通功能、Yatori 设置对照和接口协议。
+- [Console 执行流程对照](docs/yatori-console.md)：原版学习通执行链、日志来源和适配依据。
 - [验证记录](docs/verification.md)：执行过的检查与真实环境验收范围。
 - [第三方声明](THIRD_PARTY_NOTICES.md)：平台 GPL-3.0、Yatori MIT 和运行时许可证。
 
