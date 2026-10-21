@@ -18,6 +18,8 @@ APK 和镜像同时包含 Yatori 的 MIT 许可证。Yatori 的第三方 Go 依�
 
 ## 产品与界面参考
 
+[yatori-dev/yatori-go-console](https://github.com/yatori-dev/yatori-go-console) 的提交 `017711107803f5232fea59446a5b8c801d4ca8b2` 用于 `engine/consolelogic/` 的学习通执行移植，版权为 Copyright (c) 2023 ChangBaiQi，MIT 许可。章测解析同时取自其 Core 提交 `ddf52f884145ba9ab7e2ac9e187ba36205eec6ce` 的业务函数。来源、选用函数与适配文件哈希见 `engine/console-upstream.json`；许可证见 `third_party/yatori-go-console/LICENSE` 和 `third_party/yatori-go-core/LICENSE`。
+
 [yatori-dev/yatori-config-generate](https://github.com/yatori-dev/yatori-config-generate) 的提交 `f4aba3eb3ee53b54478461c964e6dd3929ada531` 用于研究学习通配置字段、表单流程与 YAML 格式。对应字段转换和控制台表单在本项目中实现。
 
 [yatori-dev/yatori-go-android](https://github.com/yatori-dev/yatori-go-android) 的提交 `cb479146973ac7aca5abedf81dfc53fa4c5d298c` 用于学习通功能、规则配置和设置分组研究，采用 AGPL-3.0-or-later。其 Android 实现未纳入本项目源码；控制台及适配逻辑在本项目中实现。对照范围见 `docs/yatori-features.md`。

@@ -14,8 +14,8 @@ android {
         applicationId 'cn.zrmug.chaoxing'
         minSdk 26
         targetSdk 35
-        versionCode 10
-        versionName '0.5.3'
+        versionCode 11
+        versionName '0.5.4'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'SOURCE_URL', '"' + (System.getenv('SOURCE_URL') ?: 'https://github.com/zrmugua/chaoxing') + '"'
     }
@@ -61,6 +61,7 @@ tasks.register('bundleConsoleAssets', Sync) {
     from(sourceRoot) { include 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'UPSTREAM.md'; into 'console/licenses' }
     from(new File(rootProject.projectDir, 'licenses')) { into 'console/licenses/android' }
     from(new File(sourceRoot, 'third_party/yatori-go-core/LICENSE')) { into 'console/licenses/yatori' }
+    from(new File(sourceRoot, 'third_party/yatori-go-console/LICENSE')) { into 'console/licenses/yatori-console' }
     from(new File(sourceRoot, 'engine/licenses')) { into 'console/licenses/go' }
     into layout.buildDirectory.dir('generated/consoleAssets')
     doFirst {

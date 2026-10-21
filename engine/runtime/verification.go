@@ -84,6 +84,9 @@ func pageVerification(doc *goquery.Document, paper bool) error {
 	}
 	if paper {
 		for _, marker := range []struct{ text, reason string }{{"已截止，不能作答", "paper_closed"}, {"已过时效", "paper_closed"}, {"待重考", "paper_retake"}, {"待重做", "paper_retake"}} {
+			if marker.reason == "paper_retake" && hasQuestions {
+				continue
+			}
 			if strings.Contains(visible, marker.text) {
 				return requireManual(marker.reason)
 			}

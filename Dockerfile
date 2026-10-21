@@ -24,6 +24,7 @@ COPY backend/ ./backend/
 COPY scripts/ ./scripts/
 COPY LICENSE THIRD_PARTY_NOTICES.md UPSTREAM.md ./
 COPY third_party/yatori-go-core/LICENSE ./licenses/yatori-LICENSE
+COPY third_party/yatori-go-console/LICENSE ./licenses/yatori-console-LICENSE
 COPY engine/licenses/ ./licenses/go/
 COPY android/licenses/pyyaml-MIT.txt ./licenses/pyyaml-MIT.txt
 COPY android/licenses/libyaml-MIT.txt ./licenses/libyaml-MIT.txt

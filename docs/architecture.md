@@ -2,7 +2,7 @@
 
 平台使用 Vue 3、TypeScript、Naive UI、FastAPI、SQLite 和 Yatori Go 核心。Web API 与 Worker 共享数据库和加密配置；每次账号操作或学习任务启动独立执行进程。浏览器负责操作与展示，后台服务持续调度任务。
 
-学习通请求通过 Yatori 核心库的 API 发出。平台自己的 Go 适配层负责页面解析、任务数据转换、请求检查和错误分类；Python 后端负责账号管理、任务调度、持久化与日志展示。这里集成的是 `yatori-go-core` 核心库，执行入口为本项目的 RPC 运行时。
+学习通请求通过 Yatori 核心库的 API 发出。`engine/consolelogic` 移植 Console 的视频、音频、文档、外链执行及章测解析流程；Go 运行时负责任务接口、请求检查和错误分类；Python 后端负责账号管理、持久任务调度与日志展示。执行入口为账号独立的 RPC 运行时，来源记录见 `engine/console-upstream.json`。
 
 ## 目录
 
@@ -12,6 +12,7 @@
 | `backend/app/` | 鉴权、SQLite 持久化、加密配置、Worker 与管理 API |
 | `backend/app/adapters/yatori/` | Yatori JSON RPC 客户端与本地错误文案 |
 | `engine/runtime/` | 上游 API 适配、课程与任务数据转换、执行及网络策略 |
+| `engine/consolelogic/` | 固定版本 Console 业务逻辑的服务适配与章测解析 |
 | `engine/mobile/` | Android 原生管道入口 |
 | `third_party/yatori-go-core/` | 固定版本的 Yatori API 与依赖源码 |
 | `android/` | 安卓前台服务、私有存储密钥和浏览器管理入口 |
@@ -21,7 +22,7 @@
 
 账号凭据、学习通 Cookie 和 AI Key 加密写入 SQLite。管理员登录使用 HttpOnly/SameSite Cookie，写操作校验 CSRF。Android 主密钥由 AndroidKeyStore 包装，HTTP 入口限制私网来源。
 
-每个执行进程拥有独立 Yatori `XueXiTUserCache`。凭据通过匿名管道传递，进程结束后销毁；进程间交换结构化结果、进度、本地白名单错误和控制台日志事件。执行进程产生的 stdout/stderr 经凭据脱敏和终端控制码清理后，以“Yatori 原始日志”来源保存，并绑定学习通账号与任务。日志数量取决于核心库实际输出；原版 Yatori 完整程序的流程日志取决于其自身入口，当前运行时使用本项目的任务调度。
+每个执行进程拥有独立 Yatori `XueXiTUserCache`。凭据通过匿名管道传递，进程结束后销毁；进程间交换结构化结果、进度、本地白名单错误和控制台日志事件。Console 适配及核心 API 在执行进程中产生 stdout/stderr，经凭据脱敏和终端控制码清理后，以“Yatori 原始日志”来源保存，并绑定学习通账号与任务。Core 日志级别在进程初始化时传入，日志事件携带级别。
 
 验证提示由 Go 适配层分类，再由 Python 后端转换为中文错误文案。读取试卷时，适配层区分题目、脚本、隐藏元素与当前验证要求，并保留原始表单字段。错误结果携带验证码、人脸验证、访问频率、试卷时效等具体原因。
 

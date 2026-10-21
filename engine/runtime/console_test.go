@@ -28,6 +28,9 @@ func TestServeKeepsConsoleEventsSeparateFromRPCResults(t *testing.T) {
 	if err := decoder.Decode(&initialized); err != nil || !initialized.OK {
 		t.Fatal("initialize response unavailable")
 	}
+	if initialized.Data.(map[string]any)["execution"] != "yatori-go-console" || initialized.Data.(map[string]any)["console_upstream"] == "" {
+		t.Fatal("Console execution provenance was not exposed")
+	}
 	fmt.Fprintln(os.Stdout, "Yatori console fixture")
 	fmt.Fprintln(send, `{"id":2,"op":"export_cookies"}`)
 	var event, result Response

@@ -84,6 +84,7 @@ func (r *Runtime) chapters(course Course) ([]Chapter, error) {
 			continue
 		}
 		result = append(result, Chapter{ID: id, Title: field(node, "name"), JobCount: number(node["jobcount"]), Locked: field(node, "status") == "locked"})
+		r.chapterTitles[id] = field(node, "name")
 		nodes = append(nodes, number(node["id"]))
 	}
 	// The chapter-status endpoint is authoritative; missing nodes stay unknown.
@@ -121,6 +122,7 @@ func (r *Runtime) chapters(course Course) ([]Chapter, error) {
 		order[field(node, "id")] = number(node["indexorder"])
 	}
 	sort.SliceStable(result, func(i, j int) bool { return order[result[i].ID] < order[result[j].ID] })
+	r.consoleRunner(course, "").Log("", "获取课程章节成功 (共 ", strconv.Itoa(len(result)), " 个)")
 	return result, nil
 }
 

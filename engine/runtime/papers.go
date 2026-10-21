@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
+	"chaoxing-console/engine/consolelogic"
 	"github.com/PuerkitoBio/goquery"
 	yatori "github.com/yatori-dev/yatori-go-core/api/xuexitong"
 	"github.com/yatori-dev/yatori-go-core/que-core/aiq"
-	"github.com/yatori-dev/yatori-go-core/utils"
 )
 
 type PaperQuestion struct {
@@ -29,6 +29,7 @@ type paper struct {
 	ID            string          `json:"id"`
 	Kind          string          `json:"kind"`
 	Questions     []PaperQuestion `json:"questions"`
+	Passed        bool            `json:"passed,omitempty"`
 	fields        []map[string]string
 	course        Course
 	job           Job
@@ -69,17 +70,28 @@ func (r *Runtime) chapterPaper(course Course, supplied Job) (*paper, error) {
 	if job.Kind != "workid" {
 		return nil, failure("unsupported_job")
 	}
+	job, err = r.refreshJob(course, job)
+	if err != nil {
+		return nil, err
+	}
+	if job.Passed {
+		return &paper{ID: job.ChapterID + ":" + job.ID, Kind: "chapter", Passed: true, Questions: []PaperQuestion{}}, nil
+	}
 	var point yatori.PointWorkDto
 	if err = decodeDTO(job.Metadata["work"], &point); err != nil {
 		return nil, err
 	}
-	page, err := r.cache.WorkFetchQuestion(&point, 0, nil)
+	page, err := r.consoleRunner(course, job.ChapterID).ChapterPage(&point)
 	if err != nil {
 		return nil, r.coreError(err)
 	}
 	doc, err := paperDocument(page)
 	if err != nil {
 		return nil, err
+	}
+	parsed, err := consolelogic.ParseWorkQuestionPage(r.cache, page)
+	if err != nil {
+		return nil, failure("parser_changed")
 	}
 	p := &paper{ID: job.ChapterID + ":" + job.ID, Kind: "chapter", course: course, job: job, Questions: []PaperQuestion{}, fields: []map[string]string{hiddenFields(doc)}}
 	p.chapterFields = url.Values{}
@@ -95,52 +107,9 @@ func (r *Runtime) chapterPaper(course Course, supplied Job) (*paper, error) {
 		p.chapterFields.Add(name, value)
 	})
 	doc.Find("textarea[name]").Each(func(_ int, s *goquery.Selection) { name, _ := s.Attr("name"); p.chapterFields.Set(name, s.Text()) })
-	seen := map[string]bool{}
-	for _, part := range utils.ParseQuestionSets(doc) {
-		qdoc, e := goquery.NewDocumentFromReader(strings.NewReader(part.HTML))
-		if e != nil {
-			return nil, failure("parser_changed")
-		}
-		item := qdoc.Selection
-		q := PaperQuestion{ID: part.ID, Title: strings.TrimSpace(item.Find(".Py-m1-title .workTextWrap").Text()), Options: []string{}}
-		if q.Title == "" || !safeID.MatchString(q.ID) || seen[q.ID] {
-			return nil, failure("parser_changed")
-		}
-		seen[q.ID] = true
-		q.Type = strings.Trim(strings.TrimSpace(item.Find(".quesType").First().Text()), "[]【】")
-		for code, name := range questionTypes {
-			if q.Type == name {
-				q.Code = code
-			}
-		}
-		fields := hiddenFields(qdoc)
-		if code := fields["answertype"+strings.ToLower(q.ID)]; code != "" {
-			q.Code = code
-			q.Type = questionTypes[code]
-		}
-		item.Find(".answerList li").Each(func(i int, s *goquery.Selection) {
-			content := strings.TrimSpace(s.Find("cc").Text())
-			if content == "" {
-				content = strings.TrimSpace(s.Text())
-				content = regexp.MustCompile(`^[A-N][.、．\s]+`).ReplaceAllString(content, "")
-			}
-			if content != "" {
-				q.Options = append(q.Options, content)
-			}
-			// Upstream's submit API indexes canonical A..N. Stop on shuffled IDs.
-			if canonical, ok := s.Find("em.choose-opt").Attr("id-param"); ok && canonical != "" && canonical != string(rune('A'+i)) {
-				q.Type = "选项顺序需人工确认"
-				q.Code = ""
-			}
-		})
-		if q.Code == "2" {
-			q.Blanks = item.Find(".blankItemName, .fillInBlank").Length()
-			if q.Blanks == 0 {
-				q.Blanks = number(fields["tiankongsize"+q.ID])
-			}
-		}
-		q.Supported = q.Type != "" && (q.Code != "" && q.Code != "5")
-		p.Questions = append(p.Questions, q)
+	p.Questions, err = consoleChapterQuestions(doc, parsed)
+	if err != nil {
+		return nil, err
 	}
 	if len(p.Questions) == 0 || len(p.Questions) > 200 {
 		return nil, failure("parser_changed")
@@ -238,7 +207,7 @@ func (r *Runtime) openAssessment(course Course, a Assessment) (*paper, error) {
 	if !ok || field(target.course, "courseId") != field(course, "courseId") || field(target.course, "clazzId") != field(course, "clazzId") {
 		return nil, failure("parser_changed")
 	}
-	if target.status != "待做" && target.status != "未完成" && target.status != "未提交" && target.status != "待考试" && target.status != "进行中" {
+	if !consolelogic.AssessmentReady(a.Kind, target.status) {
 		return nil, failure("manual_required")
 	}
 	f := target.params

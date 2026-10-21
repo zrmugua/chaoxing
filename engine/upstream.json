@@ -40,19 +40,19 @@
     },
     "api/xuexitong/XueXiTongBBsApi.go": {
       "upstream_sha256": "7cf0f580b4add11cf4601ac4200d37807d8261e2231fd55b11328c65175a41e2",
-      "packaged_sha256": "1205a0faa83fb4546869efefb5c784caaac9eb74d30276676b26649f4762c74c"
+      "packaged_sha256": "c29280c44aa6b2994f6bd0f4a113df30ccaf63f61e9feff9849f625b4e8c3225"
     },
     "api/xuexitong/XueXiTongCardApi.go": {
       "upstream_sha256": "0e5475bdb51dbee35e935789c39da8e45a89ef1a1e77742ca547fb4ea6224cec",
-      "packaged_sha256": "7b6f0069b52e352f513913393531d81be0bf420557994a249a5cc823babee366"
+      "packaged_sha256": "447125661aebf776fe3134ccc1e83bee57c653786c6aa3f35208a79d7a9d41a0"
     },
     "api/xuexitong/XueXiTongChapterApi.go": {
       "upstream_sha256": "19ea7c37fe35e80c26377506548ecef8616b8db8a00290fcf2405151800bba8a",
-      "packaged_sha256": "462ea723eb0d5e3f37850d539a737f66a018212acfc9b04b2bc35838d378411a"
+      "packaged_sha256": "dc3c2f14c14407c893accb0a42e155b61168f1297a1dc11606d0d0734b7818be"
     },
     "api/xuexitong/XueXiTongChapterTestApi.go": {
       "upstream_sha256": "327a10427e5308059a3c1d837a86607d2dff554348820f59646246d5cadff645",
-      "packaged_sha256": "ff04951185a91419167f58ce1769566dd0beac89d9b5f86fbc97ff11c9afdbe8"
+      "packaged_sha256": "1603ceceaeabede9a9125bd49667375947cd666c2c13a8c1c344c8583e7ee94c"
     },
     "api/xuexitong/XueXiTongCourseApi.go": {
       "upstream_sha256": "9bac337fab70795300fa2c2bdfc64aaf4233cd0949dd04363d8c9c61ac9e5665",

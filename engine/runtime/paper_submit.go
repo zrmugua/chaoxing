@@ -3,6 +3,7 @@ package runtime
 import (
 	yatori "github.com/yatori-dev/yatori-go-core/api/xuexitong"
 	"github.com/yatori-dev/yatori-go-core/que-core/qentity"
+	"strconv"
 	"strings"
 )
 
@@ -101,5 +102,6 @@ func (r *Runtime) saveAnswers(id string, answers map[string][]string, submit, re
 		}
 	}
 	delete(r.papers, id)
+	r.consoleRunner(p.course, p.job.ChapterID).Log("", "试卷答案处理完毕 保存状态：true 交卷状态：", strconv.FormatBool(doSubmit))
 	return map[string]any{"saved": true, "submitted": doSubmit, "complete": complete}, nil
 }

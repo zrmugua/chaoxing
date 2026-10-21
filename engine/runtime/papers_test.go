@@ -23,6 +23,14 @@ func chapterFixture() string {
 		`<div class="Py-mian1" data="10"><div class="Py-m1-title"><span class="quesType">[单选题]</span><span class="workTextWrap">Question one</span></div><ul class="answerList"><li><em class="choose-opt">A</em><cc>First</cc></li><li><em class="choose-opt">B</em><cc>Second</cc></li></ul></div>` +
 		`<div class="Py-mian1" data="11"><div class="Py-m1-title"><span class="quesType">[简答题]</span><span class="workTextWrap">Question two</span></div></div>`
 }
+
+func chapterCardFixture(passed bool) string {
+	payload := map[string]any{"attachments": []any{map[string]any{"type": "workid", "job": true, "jobid": "work-51", "isPassed": passed, "enc": "refreshed-enc",
+		"property": map[string]any{"workid": "51", "jobid": "work-51", "title": "Chapter quiz", "name": "Chapter quiz"}}},
+		"defaults": map[string]any{"userid": "42", "ktoken": "refreshed-ktoken"}}
+	raw, _ := json.Marshal(payload)
+	return "<script>window.AttachmentSetting=" + string(raw) + ";</script>"
+}
 func TestChapterPartialSavePreservesExistingAnswersAndCompletePolicy(t *testing.T) {
 	for _, mode := range []string{"save", "submit", "complete"} {
 		t.Run(mode, func(t *testing.T) {
@@ -31,6 +39,9 @@ func TestChapterPartialSavePreservesExistingAnswersAndCompletePolicy(t *testing.
 			job := Job{ID: "work-51", ChapterID: "300", Kind: "workid", Metadata: map[string]any{"work": map[string]any{"CourseID": "100", "ClassID": "200", "WorkID": "51"}}}
 			r.jobs["300:work-51"] = job
 			r.transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path == "/knowledge/cards" {
+					return reply(200, chapterCardFixture(false)), nil
+				}
 				if req.Method == "GET" {
 					return reply(200, chapterFixture()), nil
 				}
@@ -77,11 +88,18 @@ func TestYatoriMobilePaperUsesCanonicalEntryAndSaveSubmitAPIs(t *testing.T) {
 	for _, kind := range []string{"work", "exam"} {
 		for _, submit := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/%v", kind, submit), func(t *testing.T) {
+				status := "待重考"
+				if kind == "work" {
+					status = "未交"
+					if submit {
+						status = "待重做"
+					}
+				}
 				r := newTest(t)
 				writes := 0
 				r.transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 					if strings.Contains(req.URL.Path, "task-list") {
-						return reply(200, `<ul class="nav"><li data="https://mooc1-api.chaoxing.com/android/mtaskmsgspecial?taskrefId=51&amp;courseId=100&amp;clazzId=200&amp;userId=42&amp;enc_task=fixture&amp;type=1&amp;msgId=0"><div><p>Paper</p><span>待做</span></div></li></ul>`), nil
+						return reply(200, `<ul class="nav"><li data="https://mooc1-api.chaoxing.com/android/mtaskmsgspecial?taskrefId=51&amp;courseId=100&amp;clazzId=200&amp;userId=42&amp;enc_task=fixture&amp;type=1&amp;msgId=0"><div><p>Paper</p><span>`+status+`</span></div></li></ul>`), nil
 					}
 					if strings.Contains(req.URL.Path, "mtaskmsgspecial") {
 						return reply(200, inputs(map[string]string{"testPaperId": "51", "testUserRelationId": "91", "cpi": "400"})+`共包含 1 道题目<script>cpi=400&workAnswerId=91&enc=fixture-enc</script>`), nil

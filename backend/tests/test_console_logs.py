@@ -86,6 +86,22 @@ def test_existing_database_keeps_logs_when_adding_source(tmp_path):
     assert db.one("SELECT count(*) AS count FROM logs")["count"] == 1
 
 
+def test_worker_transmits_core_logging_configuration_and_event_level(platform):
+    from functools import partial
+    config, app, client = platform
+    account = add_account(client, "日志账号")
+    worker = Worker(config, partial(YatoriAdapter, process_factory=ConsoleProcess))
+    worker.db.set_setting("log_level", "debug")
+    task = worker.service.queue(account, "login")
+    with worker.create_adapter(task, {}, [], lambda: None) as adapter:
+        initial = json.loads(adapter._process.stdin.getvalue().splitlines()[0])
+        assert initial["args"]["credentials"]["log_level"] == "debug"
+        assert initial["args"]["credentials"]["log_label"] == "日志账号"
+        adapter._console_log("Core diagnostic output", "debug")
+    log = worker.db.one("SELECT level,source,task_id FROM logs WHERE message='Core diagnostic output'")
+    assert log == {"level": "debug", "source": "yatori", "task_id": task["id"]}
+
+
 def test_cookie_flags_preserve_console_timestamps_and_numbers():
     lines = []
     with YatoriAdapter({}, [{"name": "thirdRegist", "value": "0"}, {"name": "session", "value": "fixture-session-cookie"}],

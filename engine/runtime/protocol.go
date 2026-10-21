@@ -3,11 +3,13 @@ package runtime
 import (
 	"bufio"
 	metadata "chaoxing-console/engine"
+	"chaoxing-console/engine/consolelogic"
 	"context"
 	"encoding/json"
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,6 +30,7 @@ type Response struct {
 	CardIndex *int    `json:"card_index,omitempty"`
 	Message   string  `json:"message,omitempty"`
 	Reason    string  `json:"reason,omitempty"`
+	Level     string  `json:"level,omitempty"`
 }
 
 func ServeStdio() { Serve(os.Stdin, os.Stdout) }
@@ -37,7 +40,12 @@ func Serve(input io.Reader, output io.Writer) {
 	encoder := json.NewEncoder(output)
 	var mutex sync.Mutex
 	emit := func(r Response) { mutex.Lock(); defer mutex.Unlock(); _ = encoder.Encode(r) }
-	console, err := captureConsole(func(message string) { emit(Response{Event: "log", Message: message}) })
+	var state *Runtime
+	var consoleLevel atomic.Value
+	consoleLevel.Store("info")
+	console, err := captureConsole(func(message string) {
+		emit(Response{Event: "log", Message: message, Level: consoleLevel.Load().(string)})
+	})
 	if err != nil {
 		emit(Response{Code: "core_unavailable"})
 		return
@@ -45,7 +53,6 @@ func Serve(input io.Reader, output io.Writer) {
 	defer console.close()
 	scanner := bufio.NewScanner(input)
 	scanner.Buffer(make([]byte, 4096), 2_000_000)
-	var state *Runtime
 	for scanner.Scan() {
 		var request Request
 		if json.Unmarshal(scanner.Bytes(), &request) != nil {
@@ -62,8 +69,9 @@ func Serve(input io.Reader, output io.Writer) {
 				if err != nil {
 					result.Code = errorCode(err)
 				} else {
+					consoleLevel.Store(state.logLevel)
 					result.OK = true
-					result.Data = map[string]string{"engine": "yatori", "upstream": UpstreamCommit}
+					result.Data = map[string]string{"engine": "yatori", "upstream": UpstreamCommit, "console_upstream": consolelogic.Commit, "execution": "yatori-go-console"}
 				}
 			}
 		} else if state == nil {

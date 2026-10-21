@@ -1,83 +1,46 @@
-# Yatori Console 执行流程对照
+# Yatori Console 执行接入
 
-核对日期：2026-10-21。本记录对照官方 Console 源码与本平台 Android 0.5.3，记录学习通执行流程、日志来源和后续适配依据。
+更新日期：2026-10-21，适用于 Android 0.5.4。学习通执行器通过 `engine/consolelogic/` 使用固定版本 Console 业务逻辑的服务适配，运行在每个账号独立的 Go 进程中。Python Worker 管理持久任务、并发、暂停与恢复，网页负责配置和日志展示。
 
-## 源码基线
+## 来源与编入范围
 
-- [yatori-go-console](https://github.com/yatori-dev/yatori-go-console/tree/017711107803f5232fea59446a5b8c801d4ca8b2)：`017711107803f5232fea59446a5b8c801d4ca8b2`。
-- Console 的 `go.mod` 指向 [yatori-go-core](https://github.com/yatori-dev/yatori-go-core/tree/ddf52f884145ba9ab7e2ac9e187ba36205eec6ce)：`ddf52f884145ba9ab7e2ac9e187ba36205eec6ce`。
-- 本平台当前编入的 Core 为 `cf6134fdb2bd0640758216d03c947a2a13b2b16a`，清单见 `engine/upstream.json`。
+- [yatori-go-console](https://github.com/yatori-dev/yatori-go-console/tree/017711107803f5232fea59446a5b8c801d4ca8b2)：`017711107803f5232fea59446a5b8c801d4ca8b2`，MIT 许可。
+- Console 采用的 [Core 业务函数](https://github.com/yatori-dev/yatori-go-core/blob/ddf52f884145ba9ab7e2ac9e187ba36205eec6ce/aggregation/xuexitong/XueXiTongCardAction.go)：`ddf52f884145ba9ab7e2ac9e187ba36205eec6ce`，用于章测解析提取。
+- 底层 API 依赖固定于 `cf6134fdb2bd0640758216d03c947a2a13b2b16a`，清单见 `engine/upstream.json`。
 
-Console 和 Core 均为 MIT 许可。此次核对阅读源码及调用关系，运行结果仍以实际接入和目标课程验证为准。
+`engine/console-upstream.json` 记录原文件、所用函数、SHA-256、服务适配说明和编入文件哈希。`scripts/verify_yatori_console.py` 在桌面执行器及 Android AAR 构建前校验清单。RPC 初始化结果返回 `execution: yatori-go-console`、`console_upstream` 和底层 API 的 `upstream`，供调用方核对来源。
 
-## 执行入口与分层
-
-Console 的入口为 `main.go` → `YatoriConsoleInit` → `logic.Lunch`。初始化核心资源后，读取 YAML 配置，调用 `lg.LogInit` 设置日志，再将学习通账号交给 `UserLoginOperation` 和 `RunBrushOperation`。
-
-学习通执行链主要位于 [`logic/xuexitong/XueXiTongPart.go`](https://github.com/yatori-dev/yatori-go-console/blob/017711107803f5232fea59446a5b8c801d4ca8b2/logic/xuexitong/XueXiTongPart.go)：
-
-```text
-UserLoginOperation
-  → RunBrushOperation
-  → UserBlock
-  → courseStudy
-      → chapterStudy
-          → 拉取章节、查询任务点完成情况
-          → nodeRun
-              → 拉取卡片、解析任务 DTO
-              → 刷新当前任务卡、补全执行参数
-              → 执行视频 / 文档 / 章测等任务
-      → writeCourseWorkAndExam
-```
-
-| 层次 | Console 使用方式 | 本平台 0.5.3 使用方式 |
+| 执行范围 | 原版依据 | 编入入口 |
 | --- | --- | --- |
-| 配置与调度 | Console 的 `config`、`logic`，按账号组织课程任务 | Python 配置、SQLite Worker 与任务检查点 |
-| 业务流程 | Core 的 `aggregation/xuexitong`，封装读取、解析及部分错误处理 | `engine/runtime` 实现课程、章节、试卷及执行适配 |
-| 底层请求 | Core 的 `api/xuexitong` | 同一 API 包，通过平台请求出口调用 |
-| 日志 | Console 流程调用 `lg.Print`，Core 也产生诊断输出 | 采集当前执行进程 stdout/stderr，另存 Worker 管理日志 |
+| 视频、音频 | `ExecuteVideo`、`ExecuteAudio` | `consolelogic.Runner.ExecuteMedia` |
+| 文档、阅读、外链 | `ExecuteDocument`、`ExecuteHyperlink` | `consolelogic.Runner` 对应执行方法 |
+| 任务卡刷新 | `nodeRun` 中重新读取卡片并完善任务 DTO | `runtime.refreshJob` |
+| 章测读取与解析 | `ParseWorkQuestionAction`、`WorkInformInputWorkDTO`、`cleanText` | `Runner.ChapterPage`、`ParseWorkQuestionPage` |
+| 作业、考试状态选择 | `writeCourseWorkAndExam` | `consolelogic.AssessmentReady`，通过 RPC 返回 `ready` |
+| 执行顺序与日志 | `nodeRun`、Core `lg.LogInit` / `lg.Print` | Worker 分阶段执行及独立进程控制台回传 |
 
-本平台源码导入脚本以 `api/xuexitong` 为起点收集依赖，当前编入清单包含该 API 所需源码。Console 使用的聚合业务包在完整 Core 仓库中；仅替换 Core 提交不会自动接入 Console 的执行流程。
+上述函数用于服务运行，接口和错误返回适配了现有 RPC 与任务检查点。Console 许可证随 APK、镜像和对应源码分发。作业与考试的题目读取、保存及交卷继续调用 Yatori API，并由平台保留提交策略和写入确认。
 
-## 章节测验
+## 任务流程
 
-Console 的 `nodeRun` 在识别到章测任务后，再次调用 `PageMobileChapterCardAction` 获取该任务卡，并用 `PointWorkDto.AttachmentsDetection` 补全参数，再交给 `ParseWorkQuestionAction`。
+Worker 先读取课程与章节，再按任务类型处理视频/音频、文档/阅读、章节测验及外链。启用多任务点模式时，章测前等待已启动的媒体与文档任务结束。每次实际执行任务或读取章测前，重新获取对应任务卡，校验任务身份并更新执行参数；已完成的测验直接跳过。
 
-[`ParseWorkQuestionAction`](https://github.com/yatori-dev/yatori-go-core/blob/ddf52f884145ba9ab7e2ac9e187ba36205eec6ce/aggregation/xuexitong/XueXiTongCardAction.go#L339) 的正常读取流程包括：
+章测通过 `WorkFetchQuestion` 读取。接口明确返回“无效的权限,code=2”时，按原版流程尝试 `WorkFetch2Question`。正常题目页交给从 Core 提取的解析函数，保留题型、表单信息、真实选项标识与选项内容的对应关系。显示顺序打乱的选择题按 `id-param` 映射和保存答案。
 
-1. 调用 `WorkFetchQuestion`。返回明确的“无效的权限,code=2”错误时，尝试 `WorkFetch2Question`。
-2. 用 `ParseWorkInform` 提取试卷表单信息，通过 `WorkInformInputWorkDTO` 写入题目实体。
-3. 在 `div.chapter-content` 中读取截止状态，再用 `ParseQuestionSets` 分题。
-4. 按题型解析题目与答案字段。选择题读取 `em.choose-opt` 的 `id-param`，保留真实选项标识与选项内容的对应关系。
-5. Console 按答题配置取得答案，再按保存、交卷或答案完整才交卷的策略执行，并记录服务器返回信息。
+保存章测时保留原表单字段及未覆盖答案，按配置选择暂存、交卷或答案完整才交卷。课程作业与考试采用 Console 的可执行状态，包括作业“未交/待重做”、考试“待重考”，并兼容接口返回的其他待做标签。当前验证要求、试卷截止或单独通知页返回具体原因供任务记录。
 
-本平台当前也读取任务卡、调用 `WorkFetchQuestion`、保留表单字段并使用 `ParseQuestionSets`。需进一步对齐的差异是：
+## 媒体执行与完成确认
 
-- `chapterPaper` 使用前次解析的任务 DTO；原版在读取每个测验前再次刷新对应任务卡。
-- 当前读取失败直接返回错误，尚未接入上述特定错误的备用读取接口。
-- 当前遇到选项 `id-param` 与显示顺序不同时，将该题交给人工确认；原版保留真实选项映射。
-- 当前自行构造章测保存表单；适配验证需同时覆盖题目解析、原有答案保留、隐藏字段和服务器返回结果。
+视频和音频从服务端播放位置续学，上报位置受实际经过时间约束。正常报告间隔沿用 Console 的 58 秒流程；到达末尾后，每 5 秒继续确认，直到服务端 `isPassed` 返回完成或等待窗口耗尽。等待窗口为 `max(500, 视频时长/2)` 秒，并受任务执行时限与暂停/停止控制约束。
 
-0.5.3 已调整验证提示识别，区分题目、脚本和明确隐藏的元素。用户课程具体触发条件仍需结合实际返回页面核对。
+执行进程返回后，Worker 再回读任务卡和章节状态。服务端未确认的任务保留检查点，供后续同步与恢复核对。
 
-## 日志来源和配置
+## 账号日志与设置
 
-原版显示的课程开始、章节数量、视频观看时间、任务跳过原因和试卷提交结果，许多来自 Console 的 `XueXiTongPart.go`，由业务流程主动调用 `lg.Print` 产生。采集底层 API 调用的 stdout/stderr，只能得到这些调用实际产生的输出。
+Console 适配会输出章节数量、视频观看时间、提交状态、末尾确认等待、文档/外链状态，以及试卷保存与交卷状态。输出通过账号进程的 stdout/stderr 回传，脱敏后绑定账号及任务，管理日志保留自己的来源。
 
-[`logic.Lunch`](https://github.com/yatori-dev/yatori-go-console/blob/017711107803f5232fea59446a5b8c801d4ca8b2/logic/Lunch.go#L134) 调用 `lg.LogInit` 传入日志级别、文件开关、颜色与路径。[Core 日志实现](https://github.com/yatori-dev/yatori-go-core/blob/ddf52f884145ba9ab7e2ac9e187ba36205eec6ce/utils/log/LogUtils.go#L70) 只有 INFO、DEBUG 两种级别，按所选级别相等匹配输出，日志文本自带时间。
+Worker 将系统日志级别与账号显示名传给执行进程，由 Core `lg.LogInit` 初始化。Core 原版支持 INFO 和 DEBUG，按所选级别相等匹配输出；INFO 用于学习进度，DEBUG 用于核心诊断。事件携带级别，网页可按学习通账号、来源与级别筛选。设置对新建执行进程生效。
 
-本平台的系统日志级别目前用于数据库与管理日志过滤。RPC 初始化尚未传入 Core 日志级别，也未调用 `lg.LogInit`；因此在系统设置中选择 DEBUG，并不会开启 Core 的 DEBUG 输出。这是日志配置对齐时需要处理的实际差异。
+## 验证
 
-账号筛选可继续使用本平台的独立执行进程和任务绑定：上游实际产生的控制台输出经脱敏后保存到该账号，平台调度事件保留各自来源。适配后的流程日志需要明确其实现来源。
-
-## 视频末尾状态
-
-Console 的 `ExecuteVideo` 在到达视频末尾后，根据服务端 `isPassed` 继续上报及等待，另有等待上限。本平台 `video` 目前在末尾两次上报后返回，再由 Worker 回读任务卡和章节状态；未获完成确认时保留待确认状态。
-
-两者等待服务端确认的窗口不同。对齐时需覆盖“已到末尾但完成状态尚未更新”的样本，验证等待、超时和服务重启后的检查点行为。用户日志中的视频未确认状态是否与该差异有关，尚待目标课程验证。
-
-## 后续适配验收
-
-实现以以上固定源码为依据，优先核对任务卡刷新、章测备用读取、真实选项映射、Core 日志设置和视频末尾确认。复用业务函数前需检查包级依赖、Android 原生依赖、取消操作及错误返回；Console 的 CLI 入口中存在 `os.Exit` / `log.Fatal`，服务端接入应将错误交还任务调度器。
-
-验收覆盖账号配置到执行参数的传递、账号间日志归属、真实请求与解析路径、答案保存和交卷边界、任务取消与恢复，以及目标设备上的课程运行。代码阅读用于确定实现依据，离线样本和真实课程结果分别记录。
+离线回归覆盖实际 Yatori 请求入口、任务卡刷新、备用章测读取、乱序选项保存、已有答案保留、任务跳过、延迟完成确认、取消等待，以及日志配置和账号归属。构建同时校验 Console 与 Core 源码清单。具体测试、APK 内容和设备验证范围见 [验证记录](verification.md)。

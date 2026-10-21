@@ -26,7 +26,7 @@
 
 Yatori 的标准输出、标准错误及 Go 标准日志通过账号独立进程回传，标记为「Yatori」；调度、重试及任务结果由管理台记录，标记为「管理台」。日志保留原文中的时间和错误信息，移除终端颜色控制码并过滤密码、Cookie 和令牌。日志级别遵循系统设置。
 
-本平台运行 Yatori 核心库 API，由平台适配层与 Worker 组织任务。原始日志来自该执行进程实际产生的输出，核心库成功调用可能没有控制台输出。测验读取的验证判断由平台适配层负责，任务错误会区分验证码、人脸识别、访问频率和试卷状态等原因。实现分工见 [项目架构](architecture.md)。
+本平台通过 Console 执行适配和 Yatori 核心 API 运行任务。视频观看时间、提交状态、末尾确认等待、文档与外链状态由执行流程输出，并与核心诊断输出一起回传。系统日志级别会在新执行进程初始化时传给 Core；Core 的 INFO 与 DEBUG 按原版级别选择输出。测验读取的验证判断由平台适配层负责，任务错误区分验证码、人脸识别、访问频率和试卷状态等原因。实现分工见 [项目架构](architecture.md)。
 
 更新后运行账号任务时开始采集原始输出。单行超过 64 KiB 时保留前段并标记截断；网页保留最近 2,000 条已加载记录。数据库升级会保留历史管理台日志，可通过来源筛选查看。
 
@@ -89,7 +89,7 @@ AI 支持 Chat Completions、Responses 和秘塔协议。预设包括 OpenAI、D
 
 ## 参考版本
 
-- [Yatori Console](https://github.com/yatori-dev/yatori-go-console/tree/017711107803f5232fea59446a5b8c801d4ca8b2)：学习通执行流程、日志初始化、章测读取与保存策略，MIT；调用链与当前实现差异见 [Console 执行流程对照](yatori-console.md)。
+- [Yatori Console](https://github.com/yatori-dev/yatori-go-console/tree/017711107803f5232fea59446a5b8c801d4ca8b2)：学习通执行流程、日志初始化、章测读取与保存策略，MIT；执行范围与服务适配见 [Console 执行接入](yatori-console.md)。
 - [Yatori 配置生成器](https://github.com/yatori-dev/yatori-config-generate/tree/f4aba3eb3ee53b54478461c964e6dd3929ada531)：配置字段、条件表单和 YAML 格式。
 - [Yatori Android App](https://github.com/yatori-dev/yatori-go-android/tree/cb479146973ac7aca5abedf81dfc53fa4c5d298c)：账号课程配置、多选课程、启动摘要和无空题提交策略，AGPL-3.0-or-later。
 - [Yatori Go 核心](https://github.com/yatori-dev/yatori-go-core/tree/cf6134fdb2bd0640758216d03c947a2a13b2b16a)：学习通 API、DTO 与解析工具，MIT；源码与哈希见 `engine/upstream.json`。

@@ -144,7 +144,7 @@ func TestVideoResumesFromServerPositionAtElapsedRealTime(t *testing.T) {
 		t.Fatal("server playTime was lost")
 	}
 	call(t, r, "execute", map[string]any{"course": testCourse, "job": jobs[0]})
-	if len(reports) != 3 || reports[0] != 10 || reports[1] != 12 || reports[2] != 12 {
+	if len(reports) < 4 || reports[0] != 10 || reports[1] != 12 || reports[len(reports)-1] != 12 || now.Sub(time.Unix(1000, 0)) < 502*time.Second {
 		t.Fatalf("unexpected reports: %v", reports)
 	}
 	if r.jobs["300:task-1"].Passed {
@@ -241,13 +241,17 @@ func TestQuizPreviewUsesYatoriQuestionParserAndReadOnlyRequest(t *testing.T) {
 	}
 	r.jobs["300:work-500"] = job
 	r.transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == "GET" && req.URL.Path == "/knowledge/cards" {
+			payload, _ := json.Marshal(map[string]any{"attachments": []any{raw}, "defaults": defaults})
+			return reply(200, "<script>window.AttachmentSetting="+string(payload)+";</script>"), nil
+		}
 		if req.Method != "GET" || req.URL.Path != "/android/mworkspecial" || req.URL.Query().Get("workid") != "500" {
 			t.Fatal("quiz preview used unexpected request")
 		}
-		return reply(200, `<div class="Py-mian1" data="q1"><div class="Py-m1-title"><span class="quesType">[单选题]</span><span class="workTextWrap">Question text</span></div><ul class="answerList"><li>A. First</li><li>B. Second</li></ul></div>`), nil
+		return reply(200, `<div class="Py-mian1" data="10"><div class="Py-m1-title"><span class="quesType">[单选题]</span><span class="workTextWrap">Question text</span></div><ul class="answerList"><li><em class="choose-opt">A</em><cc>First</cc></li><li><em class="choose-opt">B</em><cc>Second</cc></li></ul></div>`), nil
 	})
 	questions := call(t, r, "questions", map[string]any{"course": testCourse, "job": job}).([]map[string]any)
-	if len(questions) != 1 || questions[0]["id"] != "q1" || questions[0]["title"] != "Question text" || len(questions[0]["options"].([]string)) != 2 {
+	if len(questions) != 1 || questions[0]["id"] != "10" || questions[0]["title"] != "Question text" || len(questions[0]["options"].([]string)) != 2 {
 		t.Fatal("question preview shape mismatch")
 	}
 }
@@ -378,7 +382,7 @@ func TestAudioUsesYatoriAudioEndpointAndRealElapsedTime(t *testing.T) {
 		t.Fatal("audio task kind lost")
 	}
 	call(t, r, "execute", map[string]any{"course": testCourse, "job": jobs[0]})
-	if len(reports) != 3 || reports[0] != 10 || reports[2] != 12 {
+	if len(reports) < 4 || reports[0] != 10 || reports[len(reports)-1] != 12 || now.Sub(time.Unix(1000, 0)) < 502*time.Second {
 		t.Fatal("audio resume failed")
 	}
 	if r.jobs["300:task-1"].Passed {

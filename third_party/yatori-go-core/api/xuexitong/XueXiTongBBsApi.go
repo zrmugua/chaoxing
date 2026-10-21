@@ -127,7 +127,7 @@ func (cache *XueXiTUserCache) PullUtEnc(courseId, clazzid, chapterId, enc string
 		fmt.Println(err)
 		return "", err
 	}
-	if strings.Contains(string(body), "请输入验证码") || strings.Contains(string(body), "请输入图片中的验证码") {
+	if ConsoleRequestHook == nil && (strings.Contains(string(body), "请输入验证码") || strings.Contains(string(body), "请输入图片中的验证码")) {
 		return "", errors.New("触发验证码")
 	}
 	compile := regexp.MustCompile(`var utEnc="([^"]+)";`)

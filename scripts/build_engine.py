@@ -17,6 +17,7 @@ def main():
     if not args.go:
         parser.error("Install Go 1.27 or pass --go with its executable path")
     subprocess.run([os.sys.executable, str(ROOT / "scripts/vendor_yatori.py")], check=True)
+    subprocess.run([os.sys.executable, str(ROOT / "scripts/verify_yatori_console.py")], check=True)
     output = args.output or ROOT / "bin" / ("yatori-engine.exe" if os.name == "nt" else "yatori-engine")
     output = output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

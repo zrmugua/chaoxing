@@ -18,6 +18,8 @@ def main():
         if not os.environ.get(name):
             parser.error(name + " must point to the installed build dependency")
     go = str(Path(args.go).resolve())
+    for script in ("vendor_yatori.py", "verify_yatori_console.py"):
+        subprocess.run([os.sys.executable, str(ROOT / "scripts" / script)], check=True)
     tools = ROOT / ".tools/android-go-bin"
     tools.mkdir(parents=True, exist_ok=True)
     environment = {**os.environ, "GOBIN": str(tools)}

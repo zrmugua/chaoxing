@@ -70,6 +70,37 @@ def test_execution_settings_reach_account_engine(platform):
     assert captured["media_client"] == "mobile" and captured["execution_timeout"] == 120
 
 
+@pytest.mark.parametrize("mode", ["normal", "multi_node"])
+def test_console_executes_media_before_opening_chapter_paper(platform, mode):
+    config, app, client = platform
+    rules = DEFAULT_RULES | {"video_mode": mode, "answer_mode": "ai", "chapter_test": True, "work": False, "exam": False}
+    events = []
+
+    class Ordered(RecordingAdapter):
+        done = False
+
+        def list_jobs(self, course, chapter):
+            return [Job("quiz", "300", "workid", "章测", False, 1, {}, {}),
+                    Job("video", "300", "video", "视频", type(self).done, 0, {}, {})]
+
+        def execute(self, course, job, control, progress):
+            control()
+            events.append("video")
+            type(self).done = True
+            progress(1)
+
+        def chapter_paper(self, course, job):
+            events.append("quiz")
+            return {"id": "paper", "questions": [], "passed": True}
+
+    account = add_account(client)
+    course = add_course(app, account)
+    worker = Worker(config, Ordered)
+    worker.service.queue(account, "study", course, rules)
+    worker.run_task(worker.claim())
+    assert events == ["video", "quiz"]
+
+
 def test_sensitive_service_settings_are_encrypted_and_kept_on_blank_update(platform, monkeypatch):
     config, app, client = platform
     monkeypatch.setattr("backend.app.settings_routes.validate_endpoint", lambda _: None)

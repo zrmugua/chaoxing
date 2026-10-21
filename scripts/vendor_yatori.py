@@ -82,6 +82,11 @@ def import_source(source, commit):
                 if package == "api/xuexitong":
                     packaged = packaged.replace("client.Do(", "platformDo(client, ")
                     packaged = packaged.replace("client.PostForm(", "platformPostForm(client, ")
+                    # The platform transport classifies active verification before
+                    # returning HTML; preserve original checks for standalone use.
+                    packaged = packaged.replace(
+                        'if strings.Contains(string(body), "请输入验证码") || strings.Contains(string(body), "请输入图片中的验证码") {',
+                        'if ConsoleRequestHook == nil && (strings.Contains(string(body), "请输入验证码") || strings.Contains(string(body), "请输入图片中的验证码")) {')
             files[name] = (raw, packaged.encode("utf-8"))
     for name in ["go.mod", "go.sum", "LICENSE"]:
         raw = normalized(source / name)

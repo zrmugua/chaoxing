@@ -45,7 +45,7 @@ def normalize_answer(raw, question):
         return [value] if value else []
     if code == "2":
         return answers if question.get("blanks", 0) > 0 and len(answers) == question["blanks"] else []
-    return answers if code in ("4", "6") and len(answers) == 1 else []
+    return answers if code in ("4", "5", "6") and len(answers) == 1 else []
 
 
 def resolve_answer(service, adapter, course, question, mode):

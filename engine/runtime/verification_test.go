@@ -17,6 +17,9 @@ func TestChapterPaperReadsQuestionsWithInactiveVerificationResources(t *testing.
 		if req.Method != "GET" {
 			t.Fatal("reading the paper attempted a write")
 		}
+		if req.URL.Path == "/knowledge/cards" {
+			return reply(200, chapterCardFixture(false)), nil
+		}
 		return reply(200, page), nil
 	})
 	p, err := r.chapterPaper(testCourse, job)
@@ -42,7 +45,7 @@ func TestActualVerificationRequirementsKeepSpecificReasons(t *testing.T) {
 }
 
 func TestQuestionTextAndHiddenMarkupAreSeparateFromVerification(t *testing.T) {
-	page := chapterFixture() + `<div class="Py-mian1"><div class="workTextWrap">安全验证中的人脸识别是什么？请阅读考试须知。</div></div>`
+	page := chapterFixture() + `<p>待重做</p><div class="Py-mian1"><div class="workTextWrap">安全验证中的人脸识别是什么？请阅读考试须知。</div></div>`
 	if _, err := paperDocument(page); err != nil {
 		t.Fatalf("question content triggered verification: %v", err)
 	}

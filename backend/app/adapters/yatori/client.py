@@ -112,7 +112,7 @@ class YatoriAdapter:
                 if not isinstance(message, dict):
                     break
                 if message.get("event") == "log":
-                    self._console_log(message.get("message"))
+                    self._console_log(message.get("message"), message.get("level"))
                     continue
                 self._messages.put(message)
         except (OSError, ValueError):
@@ -125,7 +125,7 @@ class YatoriAdapter:
         self._log_secrets.update(str(cookie["value"]) for cookie in cookies
                                  if len(str(cookie.get("value", ""))) >= 8)
 
-    def _console_log(self, text):
+    def _console_log(self, text, emitted_level=None):
         if not self._log_callback or not isinstance(text, str):
             return
         text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
@@ -133,7 +133,7 @@ class YatoriAdapter:
         text = redact(text, tuple(self._log_secrets), limit=66000)
         if text:
             match = re.search(r"\b(DEBUG|INFO|WARN(?:ING)?|ERROR|FATAL|PANIC)\b", text, re.I)
-            level = match.group(1).lower() if match else "info"
+            level = match.group(1).lower() if match else emitted_level if emitted_level in ("debug", "info", "warning", "error") else "info"
             level = {"warn": "warning", "fatal": "error", "panic": "error"}.get(level, level)
             self._log_callback(text, level)
 

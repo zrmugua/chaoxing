@@ -61,7 +61,7 @@ func (r *Runtime) submitChapter(p *paper, answers map[string][]string, submit bo
 				values.Set("answer"+q.ID+strconv.Itoa(i+1), s)
 			}
 			values.Set("tiankongsize"+q.ID, strconv.Itoa(q.Blanks))
-		case "4", "6":
+		case "4", "5", "6":
 			values.Set("answer"+q.ID, a[0])
 		default:
 			return failure("manual_required")

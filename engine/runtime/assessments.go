@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"chaoxing-console/engine/consolelogic"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -13,6 +14,7 @@ type Assessment struct {
 	Title     string `json:"title"`
 	Status    string `json:"status"`
 	Remaining string `json:"remaining"`
+	Ready     bool   `json:"ready"`
 }
 type assessmentTarget struct {
 	course Course
@@ -99,7 +101,8 @@ func assessmentList(page, kind string) ([]Assessment, error) {
 			return
 		}
 		spans := row.Find("div span")
-		result = append(result, Assessment{ID: id, Kind: kind, Title: title, Status: strings.TrimSpace(spans.Eq(0).Text()), Remaining: strings.TrimSpace(spans.Eq(1).Text())})
+		status := strings.TrimSpace(spans.Eq(0).Text())
+		result = append(result, Assessment{ID: id, Kind: kind, Title: title, Status: status, Remaining: strings.TrimSpace(spans.Eq(1).Text()), Ready: consolelogic.AssessmentReady(kind, status)})
 	})
 	if !valid {
 		return nil, failure("parser_changed")

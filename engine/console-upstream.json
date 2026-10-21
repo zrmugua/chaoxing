@@ -1,0 +1,48 @@
+{
+  "console": {
+    "repository": "https://github.com/yatori-dev/yatori-go-console",
+    "commit": "017711107803f5232fea59446a5b8c801d4ca8b2",
+    "license": "MIT",
+    "files": {
+      "logic/xuexitong/XueXiTongPart.go": {
+        "sha256": "6c22c25c07d1f15a249272eee5f9d792936c804e5d645c2ee6491629a2ff8ef3",
+        "symbols": [
+          "nodeRun",
+          "ExecuteVideo",
+          "ExecuteAudio",
+          "ExecuteDocument",
+          "ExecuteHyperlink",
+          "writeCourseWorkAndExam"
+        ]
+      }
+    }
+  },
+  "core": {
+    "repository": "https://github.com/yatori-dev/yatori-go-core",
+    "commit": "ddf52f884145ba9ab7e2ac9e187ba36205eec6ce",
+    "license": "MIT",
+    "files": {
+      "aggregation/xuexitong/XueXiTongCardAction.go": {
+        "sha256": "a62cb0070c1ebeab24ca7c73f09152198f0a277664deda15fe3c3b717985adc5",
+        "symbols": [
+          "ParseWorkQuestionAction",
+          "WorkInformInputWorkDTO",
+          "cleanText"
+        ]
+      }
+    }
+  },
+  "adaptations": [
+    "Console media and resource execution is exposed as cancellable per-task library operations.",
+    "The chapter parser accepts an already fetched and verified page and preserves upstream question DTOs and option identifiers.",
+    "Task cards are refreshed before execution; the specific alternate chapter read remains available.",
+    "Elapsed time bounds media positions; final confirmation uses the Console waiting window.",
+    "The platform transport classifies verification and the worker persists write checkpoints and server readback.",
+    "Console log output is collected per account; initialization receives the configured Core logging level."
+  ],
+  "adapted_files": {
+    "engine/consolelogic/chapter_parser.go": "833687f1048b5e5e6439ca7a62955d75aa837593420efe2afbca617582cd86fb",
+    "engine/consolelogic/runner.go": "971fe9055bb88e91330506db1d5b44e9f62d88b9bdda8fc2a9ed25394ba40ac4",
+    "third_party/yatori-go-console/LICENSE": "cab1ea98c1383e82a7f00f9ae327f0d350056386430c027c4b50ada2fbb5ecb4"
+  }
+}

@@ -15,8 +15,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_engine_identifies_the_pinned_yatori_source():
     pin = json.loads((ROOT / "engine/upstream.json").read_text(encoding="utf-8"))
+    console = json.loads((ROOT / "engine/console-upstream.json").read_text(encoding="utf-8"))
     with YatoriAdapter({}) as adapter:
-        assert adapter.engine_info == {"engine": "yatori", "upstream": pin["commit"]}
+        assert adapter.engine_info == {"engine": "yatori", "upstream": pin["commit"],
+                                       "execution": "yatori-go-console", "console_upstream": console["console"]["commit"]}
 
 
 def test_two_account_processes_have_independent_yatori_caches():

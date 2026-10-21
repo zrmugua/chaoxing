@@ -93,6 +93,9 @@ class Worker(AssessmentWorker):
 
     def create_adapter(self, task, credentials, cookies, control):
         if self.adapter_factory is YatoriAdapter or getattr(self.adapter_factory, "func", None) is YatoriAdapter:
+            account = self.db.one("SELECT label FROM accounts WHERE id=?", (task["account_id"],))
+            credentials = credentials | {"log_level": self.db.settings()["log_level"],
+                                         "log_label": account["label"] if account else ""}
             return self.adapter_factory(credentials, cookies, control,
                 log_callback=lambda text, level: self.db.log(text, task["id"], level, source="yatori"))
         return self.adapter_factory(credentials, cookies, control)
@@ -221,6 +224,10 @@ class Worker(AssessmentWorker):
                 continue
             self.db.log(f"读取第 {index + 1}/{len(chapters)} 个章节的任务点", task["id"])
             jobs = adapter.list_jobs(course, chapter)
+            # Console nodeRun executes media and documents before chapter tests.
+            order = {"video": 0, "audio": 0, "document": 1, "read": 1,
+                     "workid": 2, "work": 2, "quiz": 2, "hyperlink": 3}
+            jobs.sort(key=lambda job: order.get(job.kind, 4))
             if options["shuffle"]:
                 random.SystemRandom().shuffle(jobs)
             self.db.log(f"读取到 {len(jobs)} 个任务点", task["id"])
@@ -249,11 +256,19 @@ class Worker(AssessmentWorker):
                     unconfirmed = True
                     continue
                 if job.kind in ("workid", "work", "quiz"):
+                    if parallel_jobs:
+                        if not self.parallel_points(task, course, chapter, parallel_jobs, checkpoint, checkpoint_lock, options):
+                            unconfirmed = True
+                        parallel_jobs = []
                     if options["answer_mode"] != "off":
                         if key in checkpoint.get("papers", {}):
                             manual = True
                             continue
                         paper = adapter.chapter_paper(course, job)
+                        if paper.get("passed"):
+                            pending.pop(key, None)
+                            self.checkpoint(task["id"], checkpoint)
+                            continue
                         self.remember_questions(task, str(chapter["id"]), job.id, paper["questions"])
                         result = self.answer_paper(task, course, paper, adapter, checkpoint, key)
                         if not result["submitted"]:

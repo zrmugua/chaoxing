@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"chaoxing-console/engine/consolelogic"
 	yatori "github.com/yatori-dev/yatori-go-core/api/xuexitong"
+	lg "github.com/yatori-dev/yatori-go-core/utils/log"
 )
 
 type failure string
@@ -76,6 +78,9 @@ type Runtime struct {
 	papers           map[string]*paper
 	assessmentsByID  map[string]assessmentTarget
 	proxyURL         string
+	logLabel         string
+	logLevel         string
+	chapterTitles    map[string]string
 }
 
 func New(args json.RawMessage) (*Runtime, error) {
@@ -86,6 +91,8 @@ func New(args json.RawMessage) (*Runtime, error) {
 			Timeout     float64 `json:"execution_timeout"`
 			MediaClient string  `json:"media_client"`
 			ProxyURL    string  `json:"proxy_url"`
+			LogLabel    string  `json:"log_label"`
+			LogLevel    string  `json:"log_level"`
 		} `json:"credentials"`
 		Cookies []Cookie `json:"cookies"`
 	}
@@ -100,7 +107,14 @@ func New(args json.RawMessage) (*Runtime, error) {
 		seconds = 86400
 	}
 	r := &Runtime{cache: &yatori.XueXiTUserCache{Name: initial.Credentials.Username, Password: initial.Credentials.Password},
-		ctx: context.Background(), progress: func(float64) {}, executionTimeout: time.Duration(seconds) * time.Second, jobs: map[string]Job{}, papers: map[string]*paper{}, assessmentsByID: map[string]assessmentTarget{}}
+		ctx: context.Background(), progress: func(float64) {}, executionTimeout: time.Duration(seconds) * time.Second, jobs: map[string]Job{}, papers: map[string]*paper{}, assessmentsByID: map[string]assessmentTarget{}, chapterTitles: map[string]string{}}
+	r.logLabel = initial.Credentials.LogLabel
+	r.logLevel = "info"
+	level := lg.INFO
+	if initial.Credentials.LogLevel == "debug" {
+		level, r.logLevel = lg.DEBUG, "debug"
+	}
+	lg.LogInit(level, false, 0, "")
 	cookies := []*http.Cookie{}
 	for _, c := range initial.Cookies {
 		if !allowedHost(strings.TrimPrefix(c.Domain, ".")) || c.Name == "" || len(c.Value) > 16000 {
@@ -208,6 +222,12 @@ func (r *Runtime) Dispatch(operation string, raw json.RawMessage) (data any, err
 func (r *Runtime) coreError(err error) error {
 	if r.lastFailure != nil {
 		return r.lastFailure
+	}
+	if errors.Is(err, consolelogic.ErrStructure) {
+		return failure("parser_changed")
+	}
+	if errors.Is(err, consolelogic.ErrRemote) {
+		return failure("remote_error")
 	}
 	if err != nil {
 		return err

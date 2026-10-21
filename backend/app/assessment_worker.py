@@ -73,7 +73,8 @@ class AssessmentWorker:
             if key in checkpoint.get("papers", {}):
                 manual = True
                 continue
-            if item["status"] not in ("待做", "未完成", "未提交", "待考试", "进行中"):
+            ready = item.get("ready", item["status"] in ("待做", "未完成", "未提交", "待考试", "进行中", "未交", "待重做", "待重考"))
+            if not ready:
                 manual = True
                 continue
             # Opening an exam can start its timer. Reconcile before reopening after a crash.
