@@ -6,7 +6,7 @@
 
 - 原版 Console 的 45 个运行文件通过固定提交逐文件哈希校验。
 - 原版程序及查询入口编译为 Android ARM32、ARM64、x86_64 可执行程序。
-- Python 测试：107 项通过，1 项本机 Java 工具路径检查跳过；Android Gradle 的 Java 单元测试另行通过。
+- Python 测试：109 项通过，1 项本机 Java 工具路径检查跳过；Android Gradle 的 Java 单元测试另行通过。
 - 网页 TypeScript 检查和生产构建通过。
 - Android device release、emulator debug、Android instrumentation APK 与 3 项 Java 单元测试构建通过。
 - Android 31 x86_64 模拟器：APK 安装、管理员初始化/登录、HTTP Cookie、账号数据加密保存、Worker 心跳、服务停止与重启通过。

@@ -102,7 +102,7 @@ class Database:
 
     def log(self, message, task_id=None, level="info", source="console"):
         ranks = {"debug": 0, "info": 1, "warning": 2, "error": 3}
-        if ranks.get(level.lower(), 1) < ranks[self.settings()["log_level"]]:
+        if source != "yatori" and ranks.get(level.lower(), 1) < ranks[self.settings()["log_level"]]:
             return
         message = redact(message, limit=66000 if source == "yatori" else 1000)
         self.execute("INSERT INTO logs(task_id,level,message,created_at,source) VALUES(?,?,?,?,?)",

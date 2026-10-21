@@ -33,7 +33,7 @@ def console_config(service, account, rules, titles=None):
         custom.update(includeCourses=list(dict.fromkeys(titles)), excludeCourses=[])
     basic = service.db.settings()
     value = {"setting": {
-        "basicSetting": {"webModel": 0, "logModel": 0, "logLevel": basic["log_level"].upper().replace("WARNING", "WARN"),
+        "basicSetting": {"webModel": 0, "logModel": 0, "logLevel": "DEBUG" if basic["log_level"] == "debug" else "INFO",
                          "completionTone": 0, "colorLog": int(basic["color_log"]), "logOutFileSw": 0},
         "aiSetting": {"aiType": "METAAI" if ai["api_style"] == "metaso" else "OTHER",
                       "aiUrl": ai["base_url"], "model": ai["model"], "API_KEY": ai["api_key"] if ai["enabled"] else ""},
@@ -97,7 +97,8 @@ class ConsoleProcess:
         def emit(line):
             line = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", line).rstrip("\r\n")
             if line:
-                level = "error" if "[ERROR]" in line else "warning" if "[WARN]" in line else "debug" if "[DEBUG]" in line else "info"
+                native_level = "debug" if value.get("setting", {}).get("basicSetting", {}).get("logLevel") == "DEBUG" else "info"
+                level = "error" if "[ERROR]" in line else "warning" if "[WARN]" in line else "debug" if "[DEBUG]" in line else native_level
                 log(redact(line, secrets, limit=66000), level)
 
         try:

@@ -173,3 +173,24 @@ def test_reviewed_batch_does_not_expand_after_course_sync(platform):
     service.save_courses(account, [{"courseId": "103", "clazzId": "203", "title": "后来同步的课程"}])
     task = service.queue_courses(account, plan)["tasks"][0]
     assert json.loads(task["checkpoint"])["course_titles"] == ["课程一"]
+
+
+def test_management_threshold_keeps_all_original_console_output(platform, fake_console):
+    config, app, client = platform
+    account = add_account(client)
+    service = PlatformService(app.state.db, app.state.vault)
+    task = service.queue(account, "login")
+    app.state.db.set_setting("log_level", "error")
+    value, proxy, secrets = console_config(service, service.account(account), service.study_settings(account))
+    assert value["setting"]["basicSetting"]["logLevel"] == "INFO"
+    ConsoleProcess(config, fake_console).run(account, value, proxy, secrets, lambda: None,
+        lambda text, level: app.state.db.log(text, task["id"], level, source="yatori"), "courses")
+    assert len(client.get(f"/api/logs?account_id={account}&source=yatori").json()) == 2
+
+
+def test_native_debug_mode_labels_original_unprefixed_output(platform, fake_console):
+    config, _, _ = platform
+    levels = []
+    ConsoleProcess(config, fake_console).run(1, {"setting": {"basicSetting": {"logLevel": "DEBUG"}}}, "", [], lambda: None,
+        lambda text, level: levels.append(level), "courses")
+    assert levels == ["debug", "debug"]

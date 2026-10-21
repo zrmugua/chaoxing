@@ -256,7 +256,7 @@ onMounted(() => void load())
                         { label: '仅错误', value: 'error' },
                       ]"
                     />
-                    <p>管理日志实时生效，Console 输出级别在下次启动时生效。</p>
+                    <p>Console 使用 INFO 或 DEBUG，在下次启动时生效。警告和错误选项仅筛选管理台日志，Console 仍输出 INFO。</p>
                   </div></NFormItem
                 >
               </div>
