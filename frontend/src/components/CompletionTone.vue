@@ -32,9 +32,9 @@ async function poll() {
       tasks.some(
         (t) =>
           t.kind === 'study' &&
-          t.state === 'succeeded' &&
+          t.state === 'completed' &&
           previous?.has(t.id) &&
-          previous.get(t.id) !== 'succeeded',
+          previous.get(t.id) !== 'completed',
       )
     ) {
       const oscillator = audio.createOscillator(),

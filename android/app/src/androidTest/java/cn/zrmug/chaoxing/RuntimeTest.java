@@ -53,22 +53,6 @@ public class RuntimeTest {
         }
         fail("HTTP server did not start: " + RuntimeState.read(context));
     }
-    private JSONObject rpc(AdapterPool.Session session, int id, String operation, JSONObject arguments) throws Exception {
-        session.send(new JSONObject().put("id", id).put("op", operation).put("args", arguments).toString());
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
-        while (System.nanoTime() < deadline) {
-            String line = session.poll(500);
-            if (line == null) continue;
-            JSONObject result = new JSONObject(line);
-            assertFalse("Adapter process disconnected", result.optBoolean("dead"));
-            if (result.has("event")) continue;
-            assertEquals(id, result.getInt("id"));
-            assertTrue("Core RPC failed: " + result.optString("code"), result.getBoolean("ok"));
-            return result;
-        }
-        throw new AssertionError("Core RPC timed out");
-    }
-
     @Test public void authenticationPersistenceAndAccountIsolation() throws Exception {
         Activity activity = InstrumentationRegistry.getInstrumentation().startActivitySync(
                 new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -91,37 +75,50 @@ public class RuntimeTest {
         File[] databaseFiles = new File(context.getFilesDir(), "data").listFiles();
         assertNotNull(databaseFiles);
         for (File file : databaseFiles) {
-            if (file.getName().startsWith("console.sqlite3"))
-                assertFalse(new String(Files.readAllBytes(file.toPath()), StandardCharsets.ISO_8859_1).contains("android-fixture-secret"));
-        }
-        AdapterPool.initialize(context);
-        if (!Python.isStarted()) Python.start(new AndroidPlatform(context));
-        Python.getInstance().getModule("builtins").callAttr("exec",
-                "from backend.app.adapters.yatori import YatoriAdapter\n" +
-                "from backend.app.android.process import AndroidProcess\n" +
-                "with YatoriAdapter({}, [], process_factory=AndroidProcess) as adapter:\n" +
-                "    assert adapter.export_cookies() == []\n",
-                Python.getInstance().getModule("builtins").callAttr("dict"));
-        AdapterPool.Session first = AdapterPool.open(), second = AdapterPool.open();
-        try {
-            assertNotEquals(first.processId(), second.processId());
-            for (AdapterPool.Session session : new AdapterPool.Session[]{first, second}) {
-                String marker = session == first ? "first-isolated-account" : "second-isolated-account";
-                JSONArray cookies = new JSONArray().put(new JSONObject().put("name", "_uid").put("value", marker).put("domain", ".chaoxing.com"));
-                JSONObject initialized = rpc(session, 1, "initialize", new JSONObject().put("credentials", new JSONObject()).put("cookies", cookies));
-                assertEquals("yatori", initialized.getJSONObject("data").getString("engine"));
-                String exported = rpc(session, 2, "export_cookies", new JSONObject()).getJSONArray("data").toString();
-                assertTrue(exported.contains(marker));
-                assertFalse(exported.contains(session == first ? "second-isolated-account" : "first-isolated-account"));
+            if (file.getName().startsWith("console.sqlite3")) {
+                try {
+                    assertFalse(new String(Files.readAllBytes(file.toPath()), StandardCharsets.ISO_8859_1).contains("android-fixture-secret"));
+                } catch (java.nio.file.NoSuchFileException error) {
+                    // SQLite may remove WAL/SHM sidecars when its last connection closes.
+                    if (file.getName().equals("console.sqlite3")) throw error;
+                }
             }
-        } finally { first.close(); second.close(); }
-        assertFalse(first.isAlive()); assertFalse(second.isAlive());
-        assertTrue(first.awaitDeath(3000)); assertTrue(second.awaitDeath(3000));
-        AdapterPool.Session fresh = AdapterPool.open();
-        try {
-            rpc(fresh, 1, "initialize", new JSONObject().put("credentials", new JSONObject()));
-            assertEquals(0, rpc(fresh, 2, "export_cookies", new JSONObject()).getJSONArray("data").length());
-        } finally { fresh.close(); }
+        }
+        if (!Python.isStarted()) Python.start(new AndroidPlatform(context));
+        com.chaquo.python.PyObject scope = Python.getInstance().getModule("builtins").callAttr("dict");
+        scope.callAttr("__setitem__", "native_dir", context.getApplicationInfo().nativeLibraryDir);
+        scope.callAttr("__setitem__", "test_dir", new File(context.getFilesDir(), "native-test").getAbsolutePath());
+        Python.getInstance().getModule("builtins").callAttr("exec",
+                "from pathlib import Path\n" +
+                "from types import SimpleNamespace\n" +
+                "from backend.app.console_process import ConsoleProcess\n" +
+                "cfg = SimpleNamespace(data_dir=Path(test_dir), console_binary=native_dir + '/libyatori_console.so', onnx_library=native_dir + '/libonnxruntime.so')\n" +
+                "logs = []\n" +
+                "for account in (1, 2):\n" +
+                "    result = ConsoleProcess(cfg).run(account, {}, '', [], lambda: None, lambda line, level: logs.append(line), 'selftest')\n" +
+                "    assert result['execution'] == 'yatori-go-console' and result['os'] == 'android'\n" +
+                "    assert not (cfg.data_dir / 'console' / str(account) / 'config.yaml').exists()\n" +
+                "    assert not (cfg.data_dir / 'console' / str(account) / 'query-result.json').exists()\n" +
+                "ConsoleProcess(cfg).run(3, {'setting': {'basicSetting': {'logLevel': 'INFO'}}, 'users': []}, '', [], lambda: None, lambda line, level: logs.append(line))\n" +
+                "assert any('请先在config文件中配置好相应账号' in line for line in logs)\n" +
+                "import time, subprocess\n" +
+                "children = []\n" +
+                "real_spawn = subprocess.Popen\n" +
+                "def spawn(*a, **kw):\n" +
+                "    child = real_spawn(*a, **kw)\n" +
+                "    children.append(child)\n" +
+                "    return child\n" +
+                "deadline = time.monotonic() + 0.5\n" +
+                "def stop():\n" +
+                "    if time.monotonic() > deadline: raise RuntimeError('test cancellation')\n" +
+                "subprocess.Popen = spawn\n" +
+                "try:\n" +
+                "    try: ConsoleProcess(cfg, ['/system/bin/sleep', '30']).run(4, {}, '', [], stop, lambda *a: None)\n" +
+                "    except RuntimeError: pass\n" +
+                "    assert len(children) == 1 and children[0].poll() is not None\n" +
+                "    assert not (cfg.data_dir / 'console/4/config.yaml').exists()\n" +
+                "finally: subprocess.Popen = real_spawn\n",
+                scope);
         DevicePreferences.set(context, "desired_running", false);
         context.stopService(new Intent(context, ConsoleService.class));
         for (int attempt = 0; attempt < 60 && !"已停止".equals(RuntimeState.read(context)); attempt++) Thread.sleep(250);

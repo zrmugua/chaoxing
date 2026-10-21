@@ -42,12 +42,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: npm --prefix frontend ci
       - run: npm --prefix frontend run build
-      - name: Build native Yatori library
+      - name: Build original Console executables
         run: |
           sdkmanager "ndk;30.0.16248370"
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
-          python scripts/collect_go_licenses.py
-          python scripts/build_android_engine.py
+          python scripts/build_original_console.py
+          python scripts/collect_go_licenses.py --original
       - name: Build Android packages and native unit tests
         env:
           CHAOXING_BUILD_PYTHON: python

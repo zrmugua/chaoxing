@@ -31,12 +31,24 @@ class PlatformService:
             raise HTTPException(404, "课程不存在")
         return course
 
-    def queue(self, account_id, kind, course_id=None, options=None):
+    def queue(self, account_id, kind, course_id=None, options=None, selected_courses=None):
         self.account(account_id)
         if course_id is not None and self.course(course_id)["account_id"] != account_id:
             raise HTTPException(409, "课程与账号归属不一致")
         now = time.time()
-        checkpoint = {"options": options if options is not None else self.study_settings(account_id)} if kind == "study" else {}
+        checkpoint = {"runtime": "original-console"}
+        if kind == "study":
+            rules = rules_with_defaults(options if options is not None else self.study_settings(account_id))
+            courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? ORDER BY id", (account_id,))
+            selected = list(selected_courses) if selected_courses is not None else [c for c in courses if (c["id"] == course_id if course_id is not None else course_selected(c, rules))]
+            if selected_courses is not None and any(c not in courses for c in selected):
+                raise HTTPException(409, "课程已更新，请重新查看启动摘要")
+            if not selected:
+                raise HTTPException(409, "请同步并选择课程后启动")
+            titles = {c["title"] for c in selected}
+            if any(c["title"] in titles and c not in selected for c in courses):
+                raise HTTPException(409, "原版 Console 按课程名称筛选，请同时选择同名课程")
+            checkpoint.update(options=rules, course_titles=sorted(titles))
         try:
             task_id = self.db.execute(
                 "INSERT INTO tasks(account_id,course_id,kind,created_at,updated_at,max_attempts,checkpoint) VALUES(?,?,?,?,?,?,?)",
@@ -54,6 +66,8 @@ class PlatformService:
                 if row is None:
                     raise HTTPException(404, "任务不存在")
                 state = row["state"]
+                if action in ("resume", "retry") and json.loads(row["checkpoint"]).get("runtime") != "original-console":
+                    raise HTTPException(409, "此为升级前任务，请从账号或课程页确认配置后重新启动")
                 if action == "pause" and state in ("queued", "recovering", "running"):
                     next_state = "pausing" if state == "running" else "paused"
                 elif action == "stop" and state in (*ACTIVE, "paused", "waiting_manual", "awaiting_confirmation"):
@@ -102,6 +116,8 @@ class PlatformService:
         selected = [course for course in courses if (course["id"] == course_id if course_id else course_selected(course, rules))]
         if rules["answer_mode"] == "ai" and not self.ai_settings()["enabled"]:
             raise HTTPException(409, "请在系统设置中启用 AI 答题服务")
+        if rules["answer_mode"] == "ai" and self.ai_settings()["api_style"] == "responses":
+            raise HTTPException(409, "请将 AI 接口设置为 Chat Completions 或秘塔协议")
         if rules["answer_mode"] == "question_bank" and not self.secret_settings("question_bank")["enabled"]:
             raise HTTPException(409, "请在系统设置中启用题库服务")
         fingerprint = hashlib.sha256(json.dumps({"rules": rules, "courses": selected}, sort_keys=True).encode()).hexdigest()
@@ -110,20 +126,12 @@ class PlatformService:
 
     def queue_courses(self, account_id, plan=None):
         rules = plan["rules"] if plan else self.study_settings(account_id)
-        courses = self.db.rows("SELECT * FROM courses WHERE account_id=? ORDER BY id", (account_id,))
+        courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? ORDER BY id", (account_id,))
         selected = list(plan["courses"]) if plan else [course for course in courses if course_selected(course, rules)]
-        if rules["shuffle"]:
-            import random
-            random.SystemRandom().shuffle(selected)
-        tasks, skipped = [], 0
-        for course in selected:
-            try:
-                tasks.append(self.queue(account_id, "study", course["id"], options=rules))
-            except HTTPException as error:
-                if error.status_code != 409:
-                    raise
-                skipped += 1
-        return {"tasks": tasks, "selected": len(selected), "skipped": skipped}
+        if not selected:
+            raise HTTPException(409, "请同步并选择课程后启动")
+        task = self.queue(account_id, "study", options=rules, selected_courses=selected)
+        return {"tasks": [task], "selected": len(selected), "skipped": 0}
 
     def secret_settings(self, name, reveal=False):
         defaults = {

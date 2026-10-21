@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { NButton, NProgress, NTag, useDialog, useMessage } from 'naive-ui'
+import { NButton, NTag, useDialog, useMessage } from 'naive-ui'
 import { ref } from 'vue'
-import { date, label, progress, serverLabel, statusType } from '../format'
+import { date, label, statusType } from '../format'
 import { errorText, post } from '../api'
 import type { Account, Course, Task } from '../types'
 import EmptyState from './EmptyState.vue'
@@ -25,7 +25,7 @@ async function perform(task: Task, action: string) {
 function stop(task: Task) {
   dialog.warning({
     title: '停止任务',
-    content: '当前任务会在安全检查点停止。已由平台确认的进度将保留。',
+    content: '将结束当前 Console 进程。再次启动时由 Console 读取平台进度。',
     positiveText: '停止任务',
     negativeText: '继续执行',
     onPositiveClick: () => perform(task, 'stop'),
@@ -40,8 +40,7 @@ function stop(task: Task) {
         <tr>
           <th>任务</th>
           <th>执行状态</th>
-          <th>平台确认</th>
-          <th>执行进度</th>
+          <th>运行结果</th>
           <th v-if="!compact">创建时间</th>
           <th class="actions-cell">操作</th>
         </tr>
@@ -70,23 +69,10 @@ function stop(task: Task) {
               label(task.state)
             }}</NTag>
             <div v-if="!compact" class="cell-subtitle">
-              第 {{ task.attempts }} / {{ task.max_attempts }} 次尝试
+              已启动 {{ task.attempts }} 次
             </div>
           </td>
-          <td>
-            <NTag :type="statusType(task.server_state)" size="small" :bordered="false">{{
-              serverLabel(task.server_state, task.kind)
-            }}</NTag>
-          </td>
-          <td class="progress-cell">
-            <NProgress
-              type="line"
-              :percentage="Math.round(progress(task.progress))"
-              :height="5"
-              :show-indicator="true"
-              :status="task.state === 'failed' ? 'error' : 'default'"
-            />
-          </td>
+          <td>{{ task.kind === 'study' ? '查看原始日志' : task.server_state === 'confirmed' ? '查询完成' : '等待查询结果' }}</td>
           <td v-if="!compact" class="cell-date">{{ date(task.created_at, true) }}</td>
           <td class="actions-cell">
             <div class="row-actions">

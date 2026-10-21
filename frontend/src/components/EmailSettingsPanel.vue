@@ -8,16 +8,14 @@ import {
   NFormItem,
   NInput,
   NInputNumber,
-  NSelect,
   NSwitch,
   NSpin,
   useMessage,
 } from 'naive-ui'
-import { api, errorText, post } from '../api'
+import { api, errorText } from '../api'
 const message = useMessage()
 const loading = ref(true),
   saving = ref(false),
-  testing = ref(false),
   configured = ref(false)
 const error = ref('')
 const form = reactive({
@@ -33,11 +31,6 @@ const form = reactive({
   on_failure: true,
   on_attention: true,
 })
-const events = [
-  { key: 'on_success', label: '任务完成' },
-  { key: 'on_failure', label: '任务失败' },
-  { key: 'on_attention', label: '需要人工处理' },
-] as const
 async function load() {
   try {
     const data = await api<any>('/settings/email')
@@ -54,6 +47,7 @@ async function save() {
   saving.value = true
   try {
     const { password, ...rest } = form
+    rest.sender = rest.username
     const data = await api<any>('/settings/email', {
       method: 'PUT',
       body: JSON.stringify({ ...rest, ...(password ? { password } : {}) }),
@@ -65,17 +59,6 @@ async function save() {
     message.error(errorText(e))
   } finally {
     saving.value = false
-  }
-}
-async function test() {
-  testing.value = true
-  try {
-    await post('/settings/email/test')
-    message.success('测试邮件已发送')
-  } catch (e) {
-    message.error(errorText(e))
-  } finally {
-    testing.value = false
   }
 }
 onMounted(load)
@@ -99,14 +82,6 @@ onMounted(load)
           <NFormItem label="端口"
             ><NInputNumber v-model:value="form.port" :min="1" :max="65535" :precision="0"
           /></NFormItem>
-          <NFormItem label="连接加密"
-            ><NSelect
-              v-model:value="form.security"
-              :options="[
-                { label: 'SSL / TLS', value: 'ssl' },
-                { label: 'STARTTLS', value: 'starttls' },
-              ]"
-          /></NFormItem>
           <NFormItem label="SMTP 用户名"
             ><NInput v-model:value="form.username" autocomplete="off"
           /></NFormItem>
@@ -118,20 +93,11 @@ onMounted(load)
               :placeholder="configured ? '已配置，留空保留' : '输入授权码'"
               autocomplete="new-password"
           /></NFormItem>
-          <NFormItem label="发件邮箱"
-            ><NInput v-model:value="form.sender" placeholder="me@example.com"
-          /></NFormItem>
         </div>
         <NFormItem label="收件邮箱"><NDynamicTags v-model:value="form.recipients" /></NFormItem>
-        <div class="settings-fields">
-          <NFormItem v-for="event in events" :key="event.key" :label="event.label"
-            ><NSwitch v-model:value="form[event.key]" :aria-label="event.label"
-          /></NFormItem>
-        </div>
-        <p class="settings-note">通知仅包含任务编号、状态和处理结果。授权码及邮箱配置加密保存。</p>
+        <p class="settings-note">运行邮件由 Console 发送，内容与时机遵循原版行为。账号可单独设置收件邮箱。</p>
         <div class="settings-actions">
-          <NButton :loading="testing" :disabled="!form.enabled" @click="test">发送测试邮件</NButton
-          ><NButton
+          <NButton
             type="primary"
             attr-type="submit"
             :loading="saving"

@@ -22,7 +22,7 @@ def test_paused_video_resumes_from_fresh_server_play_time(platform):
             super().execute(course, job, control, progress)
 
     worker, task = study_setup(platform, Video)
-    checkpoint = {"pending": {"300:video-1": {"kind": "video", "sent_at": 1}}}
+    checkpoint = {"runtime": "original-console", "pending": {"300:video-1": {"kind": "video", "sent_at": 1}}}
     worker.checkpoint(task["id"], checkpoint)
     worker.service.action(task["id"], "pause")
     worker.run_task(task)
@@ -43,7 +43,7 @@ def test_video_without_server_playtime_waits_for_confirmation(platform):
             return [Job("video-1", "300", "video", "Video", False, 0, {}, {})]
 
     worker, task = study_setup(platform, Video)
-    checkpoint = {"pending": {"300:video-1": {"kind": "video"}}}
+    checkpoint = {"runtime": "original-console", "pending": {"300:video-1": {"kind": "video"}}}
     worker.checkpoint(task["id"], checkpoint)
     task["checkpoint"] = json.dumps(checkpoint)
     worker.run_task(task)
@@ -63,7 +63,7 @@ def test_server_confirmed_chapter_skips_card_fetch_and_clears_pending(platform):
             raise AssertionError("completed chapter requested cards")
 
     worker, task = study_setup(platform, Completed)
-    checkpoint = {"pending": {"300:video-1": {"kind": "video"}}}
+    checkpoint = {"runtime": "original-console", "pending": {"300:video-1": {"kind": "video"}}}
     worker.checkpoint(task["id"], checkpoint)
     task["checkpoint"] = json.dumps(checkpoint)
     worker.run_task(task)

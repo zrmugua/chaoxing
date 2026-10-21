@@ -65,6 +65,11 @@ class Database:
             conn.execute("CREATE INDEX IF NOT EXISTS logs_task_cursor ON logs(task_id,id)")
             conn.execute("CREATE INDEX IF NOT EXISTS logs_source_cursor ON logs(source,id)")
             conn.execute("INSERT OR IGNORE INTO schema_migrations VALUES(2, unixepoch())")
+            if not conn.execute("SELECT 1 FROM schema_migrations WHERE version=3").fetchone():
+                now = time.time()
+                conn.execute("UPDATE tasks SET state='stopped',updated_at=?,finished_at=?,message='已升级 Console 运行方式，请从账号或课程页确认配置后重新启动' WHERE state IN ('queued','running','pausing','stopping','recovering','paused')", (now, now))
+                conn.execute("UPDATE runs SET state='interrupted',finished_at=? WHERE finished_at IS NULL", (now,))
+                conn.execute("INSERT INTO schema_migrations VALUES(3,?)", (now,))
 
     @contextlib.contextmanager
     def connect(self, immediate=False):

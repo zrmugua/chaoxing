@@ -14,8 +14,8 @@ android {
         applicationId 'cn.zrmug.chaoxing'
         minSdk 26
         targetSdk 35
-        versionCode 11
-        versionName '0.5.4'
+        versionCode 12
+        versionName '0.6.0'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'SOURCE_URL', '"' + (System.getenv('SOURCE_URL') ?: 'https://github.com/zrmugua/chaoxing') + '"'
     }
@@ -28,13 +28,17 @@ android {
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     sourceSets {
         main {
+            jniLibs.srcDir 'libs/original-console'
             assets.srcDir layout.buildDirectory.dir('generated/consoleAssets')
         }
     }
     buildTypes {
         release { minifyEnabled false }
     }
-    packaging { resources { excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF'] } }
+    packaging {
+        jniLibs { useLegacyPackaging true; keepDebugSymbols += ['**/libyatori_console.so', '**/libonnxruntime.so'] }
+        resources { excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF'] }
+    }
 }
 
 chaquopy {
@@ -77,7 +81,6 @@ tasks.configureEach {
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.withType(Test).configureEach { defaultCharacterEncoding = 'UTF-8' }
 dependencies {
-    implementation files('libs/yatori-engine.aar')
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test:runner:1.6.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'

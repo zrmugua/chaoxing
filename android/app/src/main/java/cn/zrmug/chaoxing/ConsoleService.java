@@ -37,7 +37,6 @@ public final class ConsoleService extends Service {
         startForeground(1, notification);
         wakeLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "chaoxing:server");
         wakeLock.acquire();
-        AdapterPool.initialize(this);
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -59,7 +58,7 @@ public final class ConsoleService extends Service {
             if (!Python.isStarted()) Python.start(new AndroidPlatform(this));
             File data = new File(getFilesDir(), "data");
             Python.getInstance().getModule("backend.app.android.runtime").callAttr("start", data.getAbsolutePath(), assets.getAbsolutePath(),
-                    secrets.masterKey, secrets.setupToken, PORT);
+                    secrets.masterKey, secrets.setupToken, PORT, getApplicationInfo().nativeLibraryDir);
             for (int attempt = 0; attempt < 90 && !stopping; attempt++) {
                 try {
                     HttpURLConnection connection = (HttpURLConnection) new URL("http://127.0.0.1:" + PORT + "/api/health").openConnection();
@@ -105,7 +104,6 @@ public final class ConsoleService extends Service {
         lifecycle.submit(() -> {
             try {
                 if (Python.isStarted()) Python.getInstance().getModule("backend.app.android.runtime").callAttr("stop");
-                AdapterPool.closeAll();
             } catch (Exception ignored) { }
             if (!RuntimeState.read(this).startsWith("启动失败")) status("已停止");
             android.os.Process.killProcess(android.os.Process.myPid());

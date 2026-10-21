@@ -9,7 +9,7 @@
 ## Yatori 执行核心
 
 - 来源：[yatori-dev/yatori-go-core](https://github.com/yatori-dev/yatori-go-core)。
-- 固定提交：`cf6134fdb2bd0640758216d03c947a2a13b2b16a`。
+- 当前原版 Console 使用的 Core 提交：`ddf52f884145ba9ab7e2ac9e187ba36205eec6ce`；历史适配器使用的 `cf6134fdb2bd0640758216d03c947a2a13b2b16a` 来源仍保留。
 - 版权：Copyright (c) 2023 ChangBaiQi。
 - 许可证：MIT，完整文本见 `third_party/yatori-go-core/LICENSE`。
 - 编入源码清单、原始/编入文件哈希和受控请求出口调整见 `engine/upstream.json`、`scripts/vendor_yatori.py` 和 `UPSTREAM.md`。
@@ -18,7 +18,7 @@ APK 和镜像同时包含 Yatori 的 MIT 许可证。Yatori 的第三方 Go 依�
 
 ## 产品与界面参考
 
-[yatori-dev/yatori-go-console](https://github.com/yatori-dev/yatori-go-console) 的提交 `017711107803f5232fea59446a5b8c801d4ca8b2` 用于 `engine/consolelogic/` 的学习通执行移植，版权为 Copyright (c) 2023 ChangBaiQi，MIT 许可。章测解析同时取自其 Core 提交 `ddf52f884145ba9ab7e2ac9e187ba36205eec6ce` 的业务函数。来源、选用函数与适配文件哈希见 `engine/console-upstream.json`；许可证见 `third_party/yatori-go-console/LICENSE` 和 `third_party/yatori-go-core/LICENSE`。
+[yatori-dev/yatori-go-console](https://github.com/yatori-dev/yatori-go-console) 的提交 `017711107803f5232fea59446a5b8c801d4ca8b2` 作为 0.6.0 本机可执行程序的完整运行源码，版权为 Copyright (c) 2023 ChangBaiQi，MIT 许可。章测解析同时取自其 Core 提交 `ddf52f884145ba9ab7e2ac9e187ba36205eec6ce` 的业务函数。来源、选用函数与适配文件哈希见 `engine/console-upstream.json`；许可证见 `third_party/yatori-go-console/LICENSE` 和 `third_party/yatori-go-core/LICENSE`。
 
 [yatori-dev/yatori-config-generate](https://github.com/yatori-dev/yatori-config-generate) 的提交 `f4aba3eb3ee53b54478461c964e6dd3929ada531` 用于研究学习通配置字段、表单流程与 YAML 格式。对应字段转换和控制台表单在本项目中实现。
 
@@ -32,10 +32,14 @@ APK 和镜像同时包含 Yatori 的 MIT 许可证。Yatori 的第三方 Go 依�
 
 Vue、Naive UI、Vite、FastAPI、Uvicorn、Cryptography、HTTPX 和 Filelock 等组件保留各自许可证。Python 依赖声明见 `requirements.txt` 和 `android/requirements.txt`，前端声明见 `frontend/package.json` 和锁文件。
 
-前端生产依赖许可汇总为 `/assets/THIRD_PARTY_LICENSES.txt`，随网页和 APK 分发。Go 运行时和 gomobile 使用 BSD 许可证，其许可文本随原生库包含。Android 服务使用 Chaquopy 17.1（Copyright Chaquo Ltd and contributors，MIT）、Python 3.11（PSF）、Android Gradle Plugin、Gradle Wrapper 与 AndroidX Test（Apache-2.0）。对应声明保存在 `android/licenses/`。
+前端生产依赖许可汇总为 `/assets/THIRD_PARTY_LICENSES.txt`，随网页和 APK 分发。Go 运行时使用 BSD 许可证，许可文本随原生程序包含。Android 服务使用 Chaquopy 17.1（Copyright Chaquo Ltd and contributors，MIT）、Python 3.11（PSF）、Android Gradle Plugin、Gradle Wrapper 与 AndroidX Test（Apache-2.0）。对应声明保存在 `android/licenses/`。
 
 APK 的「源代码与许可证」说明源码随包提供；构建者设置 `SOURCE_URL` 后可直接打开该构建源码页面。签名私钥和运行凭据独立于源码保存。
 
 YAML 配置读写使用 PyYAML 6.0.3，MIT，Copyright (c) 2017-2021 Ingy döt Net；Copyright (c) 2006-2016 Kirill Simonov。完整许可文本见 `android/licenses/pyyaml-MIT.txt`，随安装包和源码分发。
 
 Android PyYAML 依赖 LibYAML 0.2.5，MIT，Copyright (c) 2017-2020 Ingy döt Net；Copyright (c) 2006-2016 Kirill Simonov。完整许可文本见 `android/licenses/libyaml-MIT.txt`。
+
+## 原版 Console 运行依赖
+
+当前链接依赖声明见 `engine/licenses/ORIGINAL_CONSOLE_LICENSES.txt`。OCR 依赖 `github.com/Changbaiqi/ddddocr-go` 的固定提交 `1896343369f8` 未附独立许可证文件，源码地址与该事实一同记录。Android 使用 Microsoft ONNX Runtime 1.22.0，MIT，完整许可证和第三方声明见 `android/licenses/onnxruntime-MIT.txt` 与 `android/licenses/onnxruntime-ThirdPartyNotices.txt`。构建副本的 Android 资源加载适配保存在构建脚本中。

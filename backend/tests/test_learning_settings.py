@@ -11,7 +11,7 @@ from backend.app.ai import preview_answer
 from backend.app.learning import DEFAULT_RULES
 from backend.app.notifications import notify_task
 from backend.app.services import PlatformService
-from backend.app.worker import Worker
+from backend.tests.legacy_worker import Worker
 from backend.tests.test_platform import platform, add_account, add_course, RecordingAdapter, study_setup
 
 
@@ -38,8 +38,8 @@ def test_batch_course_selection_and_task_snapshot(platform):
     rules = DEFAULT_RULES | {"include_courses":["100", "101"], "exclude_courses":["101"], "media_client":"mobile"}
     client.put("/api/settings/study", json=rules)
     result = client.post(f"/api/accounts/{account}/study").json()
-    assert result["selected"] == 1 and result["tasks"][0]["course_id"] == first
-    assert client.post(f"/api/accounts/{account}/study").json()["skipped"] == 1
+    assert result["selected"] == 1 and result["tasks"][0]["course_id"] is None
+    assert client.post(f"/api/accounts/{account}/study").status_code == 409
     client.put("/api/settings/study", json=DEFAULT_RULES)
     task = app.state.db.one("SELECT * FROM tasks")
     assert json.loads(task["checkpoint"])["options"]["media_client"] == "mobile"
@@ -203,7 +203,7 @@ def test_multi_course_mode_allows_distinct_course_tasks_and_serializes_login(pla
     assert worker.claim() is None
 
 
-def test_multi_course_bootstrap_waits_for_first_saved_session(platform):
+def test_account_batch_remains_one_process_after_session_updates(platform):
     config, app, client=platform
     account=add_account(client)
     add_course(app,account)
@@ -215,7 +215,7 @@ def test_multi_course_bootstrap_waits_for_first_saved_session(platform):
     assert worker.claim() is not None
     assert worker.claim() is None
     app.state.db.execute("UPDATE accounts SET cookies=? WHERE id=?",(app.state.vault.seal([{"name":"_uid","value":"42","domain":".chaoxing.com"}]),account))
-    assert worker.claim() is not None
+    assert worker.claim() is None
 
 
 def test_parallel_points_use_distinct_sessions_and_retain_server_confirmation(platform):

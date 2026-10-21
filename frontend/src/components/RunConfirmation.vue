@@ -37,7 +37,7 @@ const answerLabels = {
   question_bank: '外置题库',
   chaoxing_ai: '学习通内置 AI',
 }
-const submitLabels = { save: '不交卷，只保存', submit: '答题后直接交卷', complete: '无空题时交卷' }
+const submitLabels = { save: '不交卷，只保存', submit: '答题后直接交卷', complete: '章测无空题时交卷（模式 2）' }
 async function load() {
   plan.value = null
   error.value = ''
@@ -63,7 +63,7 @@ async function start() {
     message.success(
       props.courseId
         ? '学习任务已加入队列'
-        : `已创建 ${result.tasks.length} 个任务，${result.skipped} 个已在队列中`,
+        : `已创建 Console 任务，包含 ${result.selected} 门课程`,
     )
     emit('update:show', false)
     emit('started')
@@ -124,7 +124,7 @@ watch(
               ? '本次运行允许自动交卷，请确认课程与配置。'
               : '任务在后台执行，关闭浏览器后仍会继续。'
           }}
-          完成状态将由学习通服务端回读确认。</NAlert
+          模式 2 对课程作业和考试执行自动交卷。由本机 yatori-go-console 执行。音频、文档、阅读和外链按 Console 流程处理；暂停会结束进程，继续时重新启动。</NAlert
         ></template
       >
       <NSpace justify="end"

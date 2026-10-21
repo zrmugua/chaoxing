@@ -1,58 +1,43 @@
 # 学习通管理台
 
-基于 Yatori Go 核心与 Console 执行逻辑的超星学习通管理平台。Vue 3 + Naive UI 提供中文控制台，FastAPI 负责管理员鉴权和配置，SQLite Worker 管理持久任务，每个账号通过独立 Yatori 执行进程访问学习通。
+安卓本机运行的 yatori-go-console 管理前端。App 启动本机管理服务，网页负责账号、配置、课程查询、进程启停和原始日志。每个账号的学习任务由独立的原版 Console 可执行程序运行。
 
-支持账号验证、课程与章节同步、视频/音频续学、文档/阅读/外链、章测/作业/考试答题、保存与交卷策略、任务暂停/停止/重试、日志、题库/AI 和邮件通知。课程完成以学习通服务端回读为依据。验证码、人工确认和受限任务在学习通处理后继续。
+## 安装与使用
 
-学习规则支持全局及账号配置，包含普通、多课程、多任务点模式、任务类型开关、随机顺序和课程筛选。规则在创建任务时保存，后台持续执行。完整范围见 [功能与设置](docs/yatori-features.md)。
+Android 8.0 及以上，设备 APK 支持 ARM32 / ARM64。安装后启动服务，在同一局域网浏览器打开 App 显示的地址。账号管理中添加账号，完成登录验证与课程同步，再进入「配置与启动」选择课程和规则。确认摘要后，Console 在安卓设备上执行，关闭浏览器仍可继续。
 
-在账号管理中完成「登录验证 → 配置与启动 → 选择课程及答题方式 → 核对启动摘要」。支持导入、导出官方 Yatori 配置生成器的 `config.yml`。源码：[zrmugua/chaoxing](https://github.com/zrmugua/chaoxing)。
+[下载 APK 与对应源码](https://github.com/zrmugua/chaoxing/releases/tag/android-v0.6.0)。安装、覆盖升级与 UFI Tool 操作见 [Android 指南](docs/android.md)。
 
-## Docker 部署
+## 配置与运行
 
-```sh
-python scripts/configure.py
-docker compose up -d --build
-```
+系统设置提供默认学习规则，以及所有账号共用的 AI、题库、邮件和日志配置。账号保存独立规则后，使用自己的课程范围、视频模式和答题设置；「跟随默认配置」恢复使用系统规则。
 
-默认监听宿主机 `127.0.0.1:8080`，服务器通过 HTTPS 反向代理访问。首次使用 `.env` 的 `SETUP_TOKEN` 初始化管理员；配置和数据库保存在独立数据卷。见 [部署指南](docs/deployment.md)。
+每次账号启动生成一份单账号 `config.yaml`，启动原版 Console 的 `main()`。多课程与多任务点模式由 Console 内部处理。暂停、停止会结束该进程；继续或重试时重新启动，由 Console 读取平台状态。任务显示「执行结束」表示进程退出，课程进度通过课程、章节同步查看。
 
-## Android APK
+日志页直接接收 Console 的 stdout / stderr，支持按学习通账号和任务筛选。密码、Cookie、令牌及终端颜色控制码会被过滤。升级到 0.6.0 会保留账号、配置和历史记录，并停止旧任务；请在账号页核对规则后重新创建任务。
 
-Android 8.0 及以上，设备包支持 ARM32/ARM64。打开应用并启动服务，手机或电脑连接同一局域网，在浏览器访问 `http://设备IP:8080`。关闭浏览器后服务继续运行。安装、覆盖升级和 UFI Tool 命令见 [Android 指南](docs/android.md)。
+## 构建与验证
 
-APK 对应源码包与构建说明一同提供；可使用 `SOURCE_URL` 为构建设置源码页面地址。
-
-## 本地开发
-
-需要 Python 3.11+、Go 1.27 和 Node.js 22。
+需要 JDK 17、Android SDK 35、NDK 30.0.16248370、Go 1.27、Python 3.11 和 Node.js 22。
 
 ```sh
-python -m pip install -r requirements.txt pytest
-python scripts/build_engine.py
 npm --prefix frontend ci
 npm --prefix frontend run build
-python scripts/configure.py
-python scripts/run.py --dev-cookie
-```
-
-在另一个终端启动 `python scripts/run.py --worker --dev-cookie`。默认访问 `http://127.0.0.1:8080`。
-
-```sh
-python scripts/vendor_yatori.py
-cd engine
-go test ./...
-cd ..
+python scripts/build_original_console.py
+python scripts/collect_go_licenses.py --original
+android/gradlew -p android :app:assembleDeviceRelease :app:testDeviceReleaseUnitTest
 python -m pytest -q
 ```
 
-## 维护与许可证
+配置 `JAVA_HOME`、`ANDROID_HOME`、`ANDROID_NDK_HOME`；Windows 使用 `gradlew.bat`。完整流程见 [Android 指南](docs/android.md)。桌面与服务器可使用 `python scripts/build_original_console.py --host` 构建原版程序，需要对应平台 C 编译器；部署见 [部署指南](docs/deployment.md)。
 
-- [架构](docs/architecture.md)：模块边界、进程隔离和任务恢复。
-- [Yatori 更新](UPSTREAM.md)：固定源码版本、受控补丁及更新门禁。
-- [功能与设置](docs/yatori-features.md)：学习通功能、Yatori 设置对照和接口协议。
-- [Console 执行接入](docs/yatori-console.md)：业务逻辑移植范围、任务流程、日志和来源校验。
-- [验证记录](docs/verification.md)：执行过的检查与真实环境验收范围。
-- [第三方声明](THIRD_PARTY_NOTICES.md)：平台 GPL-3.0、Yatori MIT 和运行时许可证。
+## 维护
 
-学习通接口因学校和课程类型而异。离线协议测试与本地服务验证记录见验证文档；真实账号的视频、文档、试卷答题及服务端回读需要按目标课程逐项验收。
+- [架构](docs/architecture.md)：管理服务与原版程序边界。
+- [Console 接入](docs/yatori-console.md)：运行入口、配置与查询桥接。
+- [功能与设置](docs/yatori-features.md)：参数对应和使用说明。
+- [来源与校验](UPSTREAM.md)：固定提交和 Android 运行库适配。
+- [验证记录](docs/verification.md)：实际检查及设备验证范围。
+- [第三方声明](THIRD_PARTY_NOTICES.md)：依赖、许可文本与源码分发。
+
+平台使用 GPL-3.0。安装包与对应源码、构建脚本和第三方声明一起发布。学习通课程执行仍需在目标设备和账号上验收。

@@ -14,7 +14,6 @@ import {
 import { ArrowRight, BookOpen, CheckCheck, LockKeyhole, RefreshCw, Search } from 'lucide-vue-next'
 import PageHeading from '../components/PageHeading.vue'
 import EmptyState from '../components/EmptyState.vue'
-import QuestionPanel from '../components/QuestionPanel.vue'
 import AssessmentsPanel from '../components/AssessmentsPanel.vue'
 import RunConfirmation from '../components/RunConfirmation.vue'
 import { useResource } from '../composables/useResource'
@@ -235,11 +234,7 @@ function study(course: Course) {
             >同步章节</NButton
           ></EmptyState
         ></NSpin
-      ><QuestionPanel
-        v-if="selected"
-        :key="selected.id"
-        :course-id="selected.id"
-      /><AssessmentsPanel
+      ><AssessmentsPanel
         v-if="selected"
         :key="`assessments-${selected.id}`"
         :course-id="selected.id"

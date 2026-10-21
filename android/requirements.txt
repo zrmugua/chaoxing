@@ -1,4 +1,4 @@
-# Android service runtime; Yatori executes in the native Go library.
+# Android management service; original Console runs as a native child process.
 fastapi==0.125.0
 pydantic==1.10.26
 uvicorn==0.38.0

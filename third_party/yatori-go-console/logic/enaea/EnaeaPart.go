@@ -1,0 +1,199 @@
+package enaea
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"strings"
+	"sync"
+	time2 "time"
+	"yatori-go-console/config"
+	"yatori-go-console/global"
+	utils2 "yatori-go-console/utils"
+	modelLog "yatori-go-console/utils/log"
+
+	"github.com/yatori-dev/yatori-go-core/aggregation/enaea"
+	enaeaApi "github.com/yatori-dev/yatori-go-core/api/enaea"
+	lg "github.com/yatori-dev/yatori-go-core/utils/log"
+)
+
+var videosLock sync.WaitGroup //视频锁
+var usersLock sync.WaitGroup  //用户锁
+
+// 用于过滤学习公社账号
+func FilterAccount(configData *config.JSONDataForConfig) []config.User {
+	var users []config.User //用于收集英华账号
+	for _, user := range configData.Users {
+		if user.AccountType == "ENAEA" {
+			users = append(users, user)
+		}
+	}
+	return users
+}
+
+// 开始刷课模块
+func RunBrushOperation(setting config.Setting, users []config.User, userCaches []*enaeaApi.EnaeaUserCache) {
+	//开始刷课
+	for i, user := range userCaches {
+		usersLock.Add(1)
+		go userBlock(setting, &users[i], user)
+
+	}
+	usersLock.Wait()
+}
+
+// 用户登录模块
+func UserLoginOperation(users []config.User) []*enaeaApi.EnaeaUserCache {
+	var UserCaches []*enaeaApi.EnaeaUserCache
+	for _, user := range users {
+		if user.AccountType == "ENAEA" {
+			cache := &enaeaApi.EnaeaUserCache{Account: user.Account, Password: user.Password}
+			_, err := enaea.EnaeaLoginAction(cache) // 登录
+			if err != nil {
+				lg.Print(lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(cache.Account), lg.White, "] ", lg.Red, err.Error())
+				log.Fatal(err) //登录失败则直接退出
+			}
+			UserCaches = append(UserCaches, cache)
+		}
+	}
+	return UserCaches
+}
+
+// 加锁，防止同时过多调用音频通知导致BUG,speak自带的没用，所以别改
+// 以用户作为刷课单位的基本块
+var soundMut sync.Mutex
+
+func userBlock(setting config.Setting, user *config.User, cache *enaeaApi.EnaeaUserCache) {
+
+	projectList, _ := enaea.ProjectListAction(cache) //拉取项目列表
+	for _, course := range projectList {
+		//过滤项目---------------------------------
+		//排除指定项目
+		excludeCourses := []string{}
+		includeCourses := []string{}
+		for _, cours := range user.CoursesCustom.ExcludeCourses {
+			split := strings.Split(cours, "-->")
+			if len(split) >= 1 {
+				excludeCourses = append(excludeCourses, split[0])
+			}
+		}
+		for _, cours := range user.CoursesCustom.IncludeCourses {
+			split := strings.Split(cours, "-->")
+			if len(split) >= 1 {
+				includeCourses = append(includeCourses, split[0])
+			}
+		}
+		if len(excludeCourses) != 0 && config.CmpCourse(course.ClusterName, excludeCourses) {
+			continue
+		}
+		//包含指定课程
+		if len(includeCourses) != 0 && !config.CmpCourse(course.ClusterName, includeCourses) {
+			continue
+		}
+		courseList, err := enaea.CourseListAction(cache, course.CircleId)
+		if err != nil {
+			lg.Print(lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(cache.Account), lg.Default, "] ", lg.BoldRed, "拉取项目列表错误", err.Error())
+			os.Exit(0)
+		}
+		lg.Print(lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(cache.Account), lg.Default, "] ", lg.Purple, "正在学习项目", " 【"+course.ClusterName+"】 ")
+
+		excludeTitleTag := []string{}
+		includeTitleTag := []string{}
+		for _, cours := range user.CoursesCustom.ExcludeCourses {
+			split := strings.Split(cours, "-->")
+			if len(split) >= 2 {
+				excludeTitleTag = append(excludeTitleTag, split[0])
+			}
+		}
+		for _, cours := range user.CoursesCustom.IncludeCourses {
+			split := strings.Split(cours, "-->")
+			if len(split) >= 2 {
+				includeTitleTag = append(includeTitleTag, split[1])
+			}
+		}
+
+		for _, item := range courseList { //遍历所有待刷视频
+			if len(excludeTitleTag) != 0 && config.CmpCourse(item.TitleTag, excludeTitleTag) {
+				continue
+			}
+			//包含指定课程
+			if len(includeTitleTag) != 0 && !config.CmpCourse(item.TitleTag, includeTitleTag) {
+				continue
+			}
+			nodeListStudy(setting, user, cache, &item) //多携程刷课
+		}
+	}
+
+	lg.Print(lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(cache.Account), lg.Default, "] ", lg.Purple, "所有待学习课程学习完毕")
+	//如果开启了邮箱通知
+	if setting.EmailInform.Sw == 1 && len(user.InformEmails) > 0 {
+		utils2.SendMail(setting.EmailInform.SMTPHost, setting.EmailInform.SMTPPort, setting.EmailInform.UserName, setting.EmailInform.Password, user.InformEmails, fmt.Sprintf("账号：[%s]</br>平台：[%s]</br>通知：所有课程已执行完毕", user.Account, global.AccountTypeStr[user.AccountType]))
+	}
+	if setting.BasicSetting.CompletionTone == 1 { //如果声音提示开启，那么播放
+		soundMut.Lock()
+		utils2.PlayNoticeSound() //播放提示音
+		soundMut.Unlock()
+	}
+	usersLock.Done()
+}
+
+// 章节节点的抽离函数
+func nodeListStudy(setting config.Setting, user *config.User, userCache *enaeaApi.EnaeaUserCache, course *enaea.EnaeaCourse) {
+	//执行刷课---------------------------------
+	nodeList, err := enaea.VideoListAction(userCache, course) //拉取对应课程的视频列表
+	//失效重登检测
+	for err != nil {
+		enaea.LoginTimeoutAfreshAction(userCache, err)
+		nodeList1, err1 := enaea.VideoListAction(userCache, course) //拉取对应课程的视频列表
+		nodeList = nodeList1
+		err = err1
+	}
+	modelLog.ModelPrint(setting.BasicSetting.LogModel == 1, lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(userCache.Account), lg.Default, "] ", "正在学习课程：", lg.Yellow, "【"+course.TitleTag+"】", "【"+course.CourseTitle+"】 ")
+	// 提交学时
+	for _, node := range nodeList {
+		//视频处理逻辑
+		videoAction(setting, user, userCache, node)
+	}
+	modelLog.ModelPrint(setting.BasicSetting.LogModel == 1, lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(userCache.Account), lg.Default, "] ", lg.Green, "课程", " 【"+course.TitleTag+"】", "【"+course.CourseTitle+"】 ", "学习完毕")
+
+}
+
+// videoAction 刷视频逻辑抽离
+func videoAction(setting config.Setting, user *config.User, UserCache *enaeaApi.EnaeaUserCache, node enaea.EnaeaVideo) {
+	if user.CoursesCustom.VideoModel == 0 { //是否打开了自动刷视频开关
+		return
+	}
+
+	modelLog.ModelPrint(setting.BasicSetting.LogModel == 0, lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(UserCache.Account), lg.Default, "] ", lg.Yellow, "正在学习视频：", lg.Default, " 【"+node.TitleTag+"】", "【"+node.CourseName+"】", "【"+node.CourseContentStr+"】 ")
+	err := enaea.StatisticTicForCCVideAction(UserCache, &node)
+	if err != nil {
+		lg.Print(lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), `[`, UserCache.Account, `] `, lg.BoldRed, "提交学时接口访问异常，返回信息：", err.Error())
+	}
+	for {
+		if node.StudyProgress >= 100 {
+			modelLog.ModelPrint(setting.BasicSetting.LogModel == 0, lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(UserCache.Account), lg.Default, "] ", " 【"+node.TitleTag+"】", " 【"+node.CourseName+"】", "【"+node.CourseContentStr+"】", " ", lg.Blue, "学习完毕")
+			break //如果看完了，也就是进度为100那么直接跳过
+		}
+		//提交学时
+		var err error
+		if user.CoursesCustom.VideoModel == 1 {
+			err = enaea.SubmitStudyTimeAction(UserCache, &node, time2.Now().UnixMilli(), 0)
+		} else if user.CoursesCustom.VideoModel == 2 {
+			err = enaea.SubmitStudyTimeAction(UserCache, &node, 60, 1) //暴力模式
+		}
+
+		if err != nil {
+			if err.Error() != "request frequently!" {
+				lg.Print(lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), `[`, UserCache.Account, `] `, " 【"+node.TitleTag+"】", "【"+node.CourseName+"】", "【"+node.CourseContentStr+"】 ", lg.BoldRed, "提交学时接口访问异常，返回信息：", err.Error())
+			}
+		}
+		//失效重登检测
+		enaea.LoginTimeoutAfreshAction(UserCache, err)
+
+		modelLog.ModelPrint(setting.BasicSetting.LogModel == 0, lg.INFO, fmt.Sprintf("[%s]", global.AccountTypeStr[user.AccountType]), "[", lg.Green, config.DisplayAccount(UserCache.Account), lg.Default, "] ", " 【"+node.TitleTag+"】", "【"+node.CourseName+"】", "【"+node.CourseContentStr+"】  >>> ", "提交状态：", "成功", lg.Default, " ", "观看进度：", fmt.Sprintf("%.2f", node.StudyProgress), "%")
+		time2.Sleep(25 * time2.Second) //每隔25s进行一次学时提交
+		if node.StudyProgress >= 100 {
+			break //如果看完该视频则直接下一个
+		}
+	}
+}

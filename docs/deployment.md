@@ -1,6 +1,6 @@
 # Web 平台部署与运行
 
-源码部署需要 Python 3.11+、Go 1.27 和 Node.js 22。Docker 构建会生成前端和 Yatori 原生执行文件。源码运行前执行 `python scripts/build_engine.py`。
+源码部署需要 Python 3.11+、Go 1.27、对应平台 C 编译器和 Node.js 22。Docker 构建会生成前端和 Yatori 原生执行文件。源码运行前执行 `python scripts/build_original_console.py --host`。
 
 ## Docker Compose
 
@@ -15,7 +15,7 @@ docker compose ps
 
 `configure.py` 只使用 Python 标准库，生成独立 MASTER_KEY 与随机 SETUP_TOKEN；已有 `.env` 会保留。Linux 文件权限为 0600。请从服务器 `.env` 中读取 SETUP_TOKEN，首次打开网页时填写令牌并创建管理员。初始化后使用管理员账号登录，后续管理通过网页完成。
 
-Compose 启动 `web` 与 `worker` 两个容器，使用同一镜像和 `console-data` 数据卷。页面与 API 统一由 8080 提供；宿主机监听 `127.0.0.1:${PORT:-8080}`。Worker 独立于浏览器执行，健康检查读取数据库心跳。保持一个 Worker 实例；课程并发通过系统设置调整，普通模式同账号串行，多课程和多任务点模式由调度器分配进程槽位。
+Compose 启动 `web` 与 `worker` 两个容器，使用同一镜像和 `console-data` 数据卷。页面与 API 统一由 8080 提供；宿主机监听 `127.0.0.1:${PORT:-8080}`。Worker 独立于浏览器执行，健康检查读取数据库心跳。保持一个 Worker 实例；课程并发通过系统设置调整，同账号始终串行，原版 Console 在进程内执行多课程和多任务点模式。
 
 生产环境将域名经 Nginx/Caddy 反向代理到 `http://127.0.0.1:8080` 并配置 TLS。`COOKIE_SECURE=true` 要求浏览器使用 HTTPS。反向代理需要传递 Host、X-Forwarded-Proto，任务日志通过控制台轮询读取。
 
@@ -40,7 +40,7 @@ location / {
 | `DATA_DIR` | 本地数据目录，Compose 固定为 `/data` |
 | `COOKIE_SECURE` | 生产为 `true`；本机 HTTP 调试由启动脚本临时设置 |
 | `PORT` | 宿主机回环监听端口，默认 8080 |
-| `YATORI_ENGINE` | 源码部署可指定 Yatori 原生执行文件路径；默认位于项目 `bin/` |
+| `YATORI_CONSOLE_BINARY` | 源码部署可指定 Yatori 原生执行文件路径；默认位于项目 `bin/` |
 
 ## 本机运行
 
@@ -50,7 +50,7 @@ Linux：
 python3.13 -m venv .venv
 . .venv/bin/activate
 python -m pip install -r requirements-web.txt
-python scripts/build_engine.py
+python scripts/build_original_console.py --host
 python scripts/configure.py
 cd frontend
 npm ci
@@ -70,7 +70,7 @@ Windows PowerShell：
 ```powershell
 py -3.13 -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements-web.txt
-.venv\Scripts\python.exe scripts/build_engine.py
+.venv\Scripts\python.exe scripts/build_original_console.py --host
 .venv\Scripts\python.exe scripts/configure.py
 npm --prefix frontend ci
 npm --prefix frontend run build

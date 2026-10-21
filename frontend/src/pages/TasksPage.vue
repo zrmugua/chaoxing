@@ -60,7 +60,7 @@ const options = computed(() => accounts.data.value.map((a) => ({ label: a.label,
 </script>
 
 <template>
-  <PageHeading title="任务队列" description="查看执行进度，暂停、停止或重试任务。"
+  <PageHeading title="任务队列" description="查看 Console 进程状态，暂停、停止或重新启动任务。"
     ><NButton :loading="tasks.loading.value" @click="tasks.refresh"
       ><template #icon><RefreshCw :size="15" /></template>刷新</NButton
     ><RouterLink to="/courses"
@@ -71,7 +71,7 @@ const options = computed(() => accounts.data.value.map((a) => ({ label: a.label,
   ><NAlert v-if="tasks.error.value" type="error" class="mb-20">{{ tasks.error.value }}</NAlert>
   <div class="info-strip">
     <span class="status-dot online" /><span
-      >任务状态每 3 秒更新。执行进度表示本地处理进程，课程完成以平台确认结果为准。</span
+      >任务状态每 3 秒更新。执行结束表示 Console 已退出，课程进度请在课程页同步查看。</span
     >
   </div>
   <section class="panel">

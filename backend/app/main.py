@@ -33,7 +33,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     else:
         db.set_setting("vault_check", vault.seal("study-console"))
     service = PlatformService(db, vault)
-    app = FastAPI(title="学习通管理平台", version="0.5.4", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="学习通管理平台", version="0.6.0", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db, app.state.vault = db, vault
 
     @app.exception_handler(RequestValidationError)
@@ -223,7 +223,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         plan = service.study_plan(account_id, course_id)
         if body is not None and body.fingerprint != plan["fingerprint"]:
             raise HTTPException(409, "学习规则已更新，请重新查看启动摘要")
-        return public_task(service.queue(account_id, "study", course_id, options=plan["rules"]))
+        return public_task(service.queue(account_id, "study", course_id, options=plan["rules"], selected_courses=plan["courses"]))
 
     @app.get("/api/courses/{course_id}/questions", dependencies=[Depends(authenticated)])
     def questions(course_id: int):

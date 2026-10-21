@@ -121,7 +121,7 @@ function refresh() {
       <strong>{{ summary.data.value.worker_online ? 'Worker 在线' : 'Worker 离线' }}</strong>
       <span>{{
         summary.data.value.worker_online
-          ? '后台执行器已连接，任务由服务器持续处理。'
+          ? 'Console 管理服务在线，任务在设备后台运行。'
           : '最近未收到心跳，请确认后台执行器已启动。'
       }}</span>
     </div>
@@ -135,7 +135,7 @@ function refresh() {
           <h2>
             最近任务<span class="count-badge">{{ summary.data.value.tasks }}</span>
           </h2>
-          <p>最近 5 项任务 · 平台完成情况见确认状态</p>
+          <p>最近 5 项任务 · 执行结果见原始日志</p>
         </div>
         <RouterLink to="/tasks" class="text-link">全部任务<ArrowUpRight :size="15" /></RouterLink>
       </div>
@@ -198,7 +198,7 @@ function refresh() {
           <span>最近心跳</span
           ><span class="cell-date">{{ date(summary.data.value.heartbeat, true) }}</span>
         </div>
-        <p class="runtime-note">验证码及平台确认提示可在任务页面查看并处理。</p>
+        <p class="runtime-note">平台提示和执行详情请查看账号的 Console 日志。</p>
       </section>
     </aside>
   </div>

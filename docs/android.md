@@ -33,7 +33,7 @@ getprop ro.product.cpu.abilist
 在 UFI Tool 提供的安卓终端中，进入有权限的 shell 后可以安装并打开应用。文件路径按实际上传位置调整：
 
 ```sh
-pm install -r /sdcard/Download/chaoxing-console-0.5.4.apk
+pm install -r /sdcard/Download/chaoxing-console-0.6.0.apk
 am start -n cn.zrmug.chaoxing/.MainActivity --ez start_service true
 ```
 
@@ -53,7 +53,7 @@ content call --uri content://cn.zrmug.chaoxing.device --method auto_start --arg 
 
 ## 数据与升级
 
-账号、加密会话、任务、进度与日志保存在应用私有目录。Worker 使用 SQLite 持久化状态，重启后进入恢复核对流程，学习通服务端确认状态与本地状态分别保存。每次账号操作租用独立安卓进程，结束时销毁该进程。
+账号、配置、任务与日志保存在应用私有目录。每个账号运行独立原版 Console 进程，标准输出按账号记录。服务重启后运行任务暂停，继续时重新启动 Console。0.6.0 升级会停止旧任务；请从账号页核对配置并重新创建。
 
 升级使用同一应用 ID、同一签名证书的 APK 覆盖安装；先停止服务再升级，数据会保留。卸载、清除应用数据会删除记录和密钥。应用自动备份已关闭，单独复制数据库不能在另一设备恢复 AndroidKeyStore 密钥。当前版本应通过网页查看记录，迁移或重置设备前先保留所需信息。
 
@@ -66,17 +66,16 @@ content call --uri content://cn.zrmug.chaoxing.device --method auto_start --arg 
 ```sh
 npm --prefix frontend ci
 npm --prefix frontend run build
-python scripts/vendor_yatori.py
-python scripts/collect_go_licenses.py
-python scripts/build_android_engine.py
+python scripts/build_original_console.py
+python scripts/collect_go_licenses.py --original
 android/gradlew -p android :app:assembleDeviceRelease :app:testDeviceReleaseUnitTest
 ```
 
-Windows 使用 `android/gradlew.bat`。`CHAOXING_BUILD_PYTHON` 可指定构建用 Python 3.11；`SOURCE_URL` 可设置本次构建的源码页面。Go 工具版本固定在 `engine/go.mod`，Yatori 原生库由脚本生成到 `android/app/libs/`，包含 ARM32、ARM64 与 x86_64。
+Windows 使用 `android/gradlew.bat`。`CHAOXING_BUILD_PYTHON` 可指定构建用 Python 3.11；`SOURCE_URL` 可设置本次构建的源码页面。原版 Console 依赖固定在 `third_party/yatori-go-console/go.mod`，可执行程序与 ONNX 库生成到 `android/app/libs/original-console/`，包含 ARM32、ARM64 与 x86_64。
 
 Windows 的工作目录含中文且 JDK 测试进程无法读取类路径时，可给 Gradle 传入 `-PconsoleBuildRoot=C:/CodexBuild/chaoxing`，把中间产物和测试类输出到该目录。APK 随之输出到该目录的 `app/outputs/apk/`。
 
-应用前台服务运行 Web/Worker，独立账号服务加载 Go 库处理匿名管道 RPC。账号服务结束时销毁进程，确认死亡后复用。Python 服务依赖独立固定在 `android/requirements.txt`。
+应用前台服务运行 Web/Worker，从安装目录启动原版 Console。私有配置在进程结束后清理，模型资源缓存在账号目录。原版模型使 APK 和安装占用较大，请为 APK、原生程序和账号资源保留足够存储空间。Python 服务依赖独立固定在 `android/requirements.txt`。
 
 APK 包含平台 GPL-3.0、Yatori MIT、Go、Python、Chaquopy 和前端组件许可证。发布签名 APK 时同时提供对应完整源码与构建说明，签名密钥独立备份。
 

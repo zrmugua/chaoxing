@@ -11,7 +11,7 @@ from backend.app.config import Config
 from backend.app.main import create_app
 from backend.app.security import redact
 from backend.app.services import PlatformService
-from backend.app.worker import Worker
+from backend.tests.legacy_worker import Worker
 
 
 @pytest.fixture

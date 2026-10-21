@@ -7,7 +7,7 @@ from backend.app.adapters.yatori import YatoriAdapter
 from backend.app.adapters.contracts import AdapterError, Job
 from backend.app.db import Database
 from backend.app.services import PlatformService
-from backend.app.worker import Worker
+from backend.tests.legacy_worker import Worker
 from backend.app.security import redact
 from backend.tests.test_platform import platform, add_account
 

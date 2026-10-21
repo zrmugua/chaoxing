@@ -33,7 +33,7 @@ public final class MainActivity extends Activity {
         scroll.addView(content); setContentView(scroll);
         text("CHAOXING CONSOLE", 11, 0xff64748b, true);
         text("学习通管理台", 28, 0xff0f172a, true);
-        text("在本机运行，通过局域网浏览器管理。", 14, 0xff64748b, false);
+        text("本机运行 yatori-go-console，通过浏览器配置、启停和查看账号日志。", 14, 0xff64748b, false);
         status = text("已停止", 18, 0xff2563eb, true);
         button("启动服务", () -> {
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)

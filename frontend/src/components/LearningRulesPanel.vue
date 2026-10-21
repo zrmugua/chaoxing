@@ -246,7 +246,7 @@ onMounted(load)
               :options="[
                 { label: '不交卷，只保存', value: 'save' },
                 { label: '答题后直接交卷', value: 'submit' },
-                { label: '无空题时交卷', value: 'complete' },
+                { label: '章测无空题时交卷（模式 2）', value: 'complete' },
               ]"
           /></NFormItem>
         </div>
@@ -271,37 +271,22 @@ onMounted(load)
               ? '任务会保存匹配到的答案，试卷交卷由你在学习通完成。'
               : '本配置允许自动交卷，启动前请核对课程范围和答题服务。'
           }}
-          遇到验证码、人脸或平台限制时，任务会等待人工处理。
+          模式 2 仅对章测检查空题，课程作业和考试仍会自动交卷。具体结果请查看 Console 原始日志。
         </NAlert>
         <NCollapse
           ><NCollapseItem title="学习内容与执行参数" name="advanced"
             ><div class="settings-fields">
               <NFormItem
                 v-for="item in [
-                  ['audio', '音频'],
-                  ['document', '文档'],
-                  ['read', '阅读'],
-                  ['hyperlink', '外链'],
+
+
+
+
                   ['shuffle', '随机学习顺序'],
                 ] as const"
                 :key="item[0]"
                 :label="item[1]"
                 ><NSwitch v-model:value="form[item[0]]" :aria-label="item[1]"
-              /></NFormItem>
-              <NFormItem label="上报客户端"
-                ><NSelect
-                  v-model:value="form.media_client"
-                  :options="[
-                    { label: '电脑端', value: 'desktop' },
-                    { label: '移动端', value: 'mobile' },
-                  ]"
-              /></NFormItem>
-              <NFormItem label="任务点执行时限（秒）"
-                ><NInputNumber
-                  v-model:value="form.execution_timeout"
-                  :min="30"
-                  :max="86400"
-                  :precision="0"
               /></NFormItem></div
           ></NCollapseItem>
           <NCollapseItem v-if="accountId" title="账号通知与网络" name="account">
@@ -311,14 +296,14 @@ onMounted(load)
                 <p>留空使用系统收件人，需要先在系统设置中启用邮件。</p>
               </div></NFormItem
             >
-            <NFormItem label="账号 HTTP / HTTPS 代理"
+            <NFormItem label="账号 HTTP 代理"
               ><NInput
                 v-model:value="preferences.proxy_url"
                 type="password"
                 show-password-on="click"
                 autocomplete="new-password"
                 :placeholder="
-                  proxyConfigured ? '已配置，留空保留' : 'http://主机:端口，可包含代理授权'
+                  proxyConfigured ? '已配置，留空保留' : 'http://主机:端口'
                 "
             /></NFormItem>
             <NFormItem v-if="proxyConfigured" label="清除已保存代理"
@@ -326,7 +311,7 @@ onMounted(load)
             /></NFormItem> </NCollapseItem
         ></NCollapse>
         <p class="settings-note">
-          课程排除优先。新建任务保存配置快照，已有任务继续使用创建时的配置。完成状态以学习通回读结果为准。
+          App 按选中的课程名称生成配置。音频、文档、阅读和外链由原版 Console 的流程处理。每次运行保存账号规则快照。
         </p>
         <div class="settings-actions">
           <NButton v-if="accountId && overridden" :disabled="saving" @click="reset"

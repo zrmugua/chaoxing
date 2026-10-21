@@ -56,7 +56,7 @@ const providers = [
     value: 'openai',
     url: 'https://api.openai.com/v1',
     model: '',
-    style: 'responses',
+    style: 'chat',
   },
   {
     label: 'DeepSeek',
@@ -201,7 +201,7 @@ onMounted(() => void load())
               <div class="setting-icon"><Gauge :size="20" /></div>
               <div>
                 <h2>运行设置</h2>
-                <p>配置任务并发、重试与日志保留</p>
+                <p>配置 Console 账号并发与日志保留</p>
               </div>
             </div>
             <NForm label-placement="top" @submit.prevent="save">
@@ -229,31 +229,7 @@ onMounted(() => void load())
                       :max="8"
                       :precision="0"
                     />
-                    <p>同时执行的课程或账号任务数，多课程模式允许同账号并行。</p>
-                  </div>
-                </NFormItem>
-                <NFormItem label="重试等待时间">
-                  <div class="setting-field">
-                    <NInputNumber
-                      v-model:value="form.retry_seconds"
-                      :min="5"
-                      :max="3600"
-                      :precision="0"
-                    >
-                      <template #suffix>秒</template>
-                    </NInputNumber>
-                    <p>发生可重试错误后，等待指定时间再尝试。</p>
-                  </div>
-                </NFormItem>
-                <NFormItem label="最大尝试次数">
-                  <div class="setting-field">
-                    <NInputNumber
-                      v-model:value="form.max_attempts"
-                      :min="1"
-                      :max="5"
-                      :precision="0"
-                    />
-                    <p>新任务的尝试上限，包含首次执行。</p>
+                    <p>同时运行的账号进程数。同账号的多课程与任务点并发由 Console 控制。</p>
                   </div>
                 </NFormItem>
                 <NFormItem label="日志保留时间">
@@ -280,12 +256,12 @@ onMounted(() => void load())
                         { label: '仅错误', value: 'error' },
                       ]"
                     />
-                    <p>保存后实时生效，系统日志页可筛选并导出记录。</p>
+                    <p>管理日志实时生效，Console 输出级别在下次启动时生效。</p>
                   </div></NFormItem
                 >
               </div>
               <p class="settings-note">
-                任务在服务器后台执行。请结合服务器资源与平台要求设置并发数。
+                Console 在设备后台执行。请结合设备内存与平台要求设置账号并发数。
               </p>
               <div class="settings-actions">
                 <NButton
@@ -339,7 +315,7 @@ onMounted(() => void load())
                   :disabled="!ai.enabled"
                   :options="[
                     { label: 'Chat Completions', value: 'chat' },
-                    { label: 'Responses', value: 'responses' },
+
                     { label: '秘塔 AI', value: 'metaso' },
                   ]"
               /></NFormItem>
@@ -365,7 +341,7 @@ onMounted(() => void load())
                 </div>
               </NFormItem>
               <p class="settings-note">
-                用于答案预览与课程自动答题，保存和交卷方式由课程配置控制。
+                AI 配置写入 Console；保存和交卷方式由账号配置控制。
               </p>
               <div class="settings-actions">
                 <NButton

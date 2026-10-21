@@ -1,5 +1,4 @@
 """LAN HTTP console and persistent Worker hosted by an Android foreground service."""
-from functools import partial
 import json
 import os
 from pathlib import Path
@@ -24,7 +23,7 @@ class AndroidVault:
         return json.loads(str(self.cipher.decrypt(value)))
 
 
-def start(data_dir, asset_dir, master_key, setup_token, port):
+def start(data_dir, asset_dir, master_key, setup_token, port, native_dir):
     global _worker, _server, _threads
     if _server is not None:
         raise RuntimeError("服务已启动")
@@ -34,17 +33,17 @@ def start(data_dir, asset_dir, master_key, setup_token, port):
     os.chdir(data_dir)
     from ..main import create_app
     from ..worker import Worker
-    from ..adapters.yatori import YatoriAdapter
-    from .process import AndroidProcess
     import uvicorn
     config = Config(data_dir, str(master_key), str(setup_token), False,
                     asset_dir / "web", vault_factory=AndroidVault, lan_only=True,
-                    session_cookie="study_android_session")
+                    session_cookie="study_android_session",
+                    console_binary=str(Path(str(native_dir)) / "libyatori_console.so"),
+                    onnx_library=str(Path(str(native_dir)) / "libonnxruntime.so"))
     app = create_app(config)
     if not app.state.db.one("SELECT value FROM settings WHERE key='android_configured'"):
         app.state.db.set_setting("concurrency", 1)
         app.state.db.set_setting("android_configured", True)
-    _worker = Worker(config, partial(YatoriAdapter, process_factory=AndroidProcess))
+    _worker = Worker(config)
     server_config = uvicorn.Config(app, host="0.0.0.0", port=int(port), loop="asyncio", http="h11",
                                   ws="none", lifespan="off", access_log=False, log_level="critical",
                                   proxy_headers=False, timeout_graceful_shutdown=8)
