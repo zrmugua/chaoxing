@@ -5,7 +5,7 @@ APK 将 Vue 控制台、FastAPI、Python Worker 与 Yatori Go 核心打包到安
 ## 设备要求
 
 - Android 8.0 / API 26 及以上。
-- ARM 32 位 `armeabi-v7a` 或 ARM 64 位 `arm64-v8a`。同一个 device APK 包含这两种架构。
+- ARM 32 位 `armeabi-v7a` 或 ARM 64 位 `arm64-v8a`。通用 APK 包含这两种架构，也提供独立架构 APK。
 - 可写的应用私有存储、可用的 AndroidKeyStore、允许安装自有 APK。
 - 设备连接 Wi-Fi、以太网或开启热点，管理端可以访问设备的私网地址。
 
@@ -33,7 +33,7 @@ getprop ro.product.cpu.abilist
 在 UFI Tool 提供的安卓终端中，进入有权限的 shell 后可以安装并打开应用。文件路径按实际上传位置调整：
 
 ```sh
-pm install -r /sdcard/Download/chaoxing-console-0.6.0.apk
+pm install -r /sdcard/Download/chaoxing-console-0.6.1.apk
 am start -n cn.zrmug.chaoxing/.MainActivity --ez start_service true
 ```
 
@@ -68,15 +68,27 @@ npm --prefix frontend ci
 npm --prefix frontend run build
 python scripts/build_original_console.py
 python scripts/collect_go_licenses.py --original
-android/gradlew -p android :app:assembleDeviceRelease :app:testDeviceReleaseUnitTest
+android/gradlew -p android -PconsoleSplitApks=true :app:assembleDeviceRelease :app:testDeviceReleaseUnitTest
 ```
 
 Windows 使用 `android/gradlew.bat`。`CHAOXING_BUILD_PYTHON` 可指定构建用 Python 3.11；`SOURCE_URL` 可设置本次构建的源码页面。原版 Console 依赖固定在 `third_party/yatori-go-console/go.mod`，可执行程序与 ONNX 库生成到 `android/app/libs/original-console/`，包含 ARM32、ARM64 与 x86_64。
 
 Windows 的工作目录含中文且 JDK 测试进程无法读取类路径时，可给 Gradle 传入 `-PconsoleBuildRoot=C:/CodexBuild/chaoxing`，把中间产物和测试类输出到该目录。APK 随之输出到该目录的 `app/outputs/apk/`。
 
-应用前台服务运行 Web/Worker，从安装目录启动原版 Console。私有配置在进程结束后清理，模型资源缓存在账号目录。原版模型使 APK 和安装占用较大，请为 APK、原生程序和账号资源保留足够存储空间。Python 服务依赖独立固定在 `android/requirements.txt`。
+应用前台服务运行 Web/Worker，从安装目录启动原版 Console。私有配置在进程结束后清理，三份原版 OCR 模型在应用私有 bundle/models 目录共享。0.6.1 启动时清理旧账号目录里的重复模型与 Windows 工具缓存。Python 服务依赖独立固定在 `android/requirements.txt`。
 
 APK 包含平台 GPL-3.0、Yatori MIT、Go、Python、Chaquopy 和前端组件许可证。发布签名 APK 时同时提供对应完整源码与构建说明，签名密钥独立备份。
 
 Gradle 生成的 release APK 为 unsigned。分发前使用 Android SDK 的 `apksigner` 和维护者密钥签名，再执行 `apksigner verify --verbose --print-certs <已签名APK>` 核对签名。覆盖升级的证书必须与已安装版本一致。
+
+## 0.6.1 安装包选择
+
+| 安装包 | 适用情况 | 大小 |
+| --- | --- | --- |
+| `chaoxing-console-0.6.1.apk` | 通用，支持 ARM32 / ARM64 | 约 81 MiB |
+| `chaoxing-console-0.6.1-arm64-v8a.apk` | 支持 64 位 Android 的设备 | 约 59 MiB |
+| `chaoxing-console-0.6.1-armeabi-v7a.apk` | 32 位 Android 设备 | 约 59 MiB |
+
+可在设备终端执行 `getprop ro.product.cpu.abilist` 查看系统支持的架构；不知道架构时使用通用包。各包使用相同应用 ID、版本和签名，支持覆盖升级。
+
+0.6.1 与 0.6.0 相比，通用包由 215 MiB 缩至约 81 MiB。资源优化保留原版模型字节与学习通执行流程。按架构生成 APK 使用 `-PconsoleSplitApks=true`；模拟器构建省略该参数。

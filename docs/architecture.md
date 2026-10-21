@@ -16,8 +16,8 @@ Vue 3 / Naive UI 提供管理网页，FastAPI 提供管理员鉴权与配置 API
 
 账号凭据和服务密钥加密保存在 SQLite。执行时配置写入应用私有目录 `console/<account_id>/config.yaml`，进程结束后清理配置、代理与查询文件。每个账号使用独立的 cwd 与缓存目录，避免 Console 单实例锁相互冲突。stdout 和 stderr 合并后按任务与账号保存，保留原文并过滤敏感值。
 
-Android 将 `libyatori_console.so` 作为可执行文件打包到 `nativeLibraryDir`，使用解压原生库模式；ONNX 从同目录加载。程序包含原版模型资源。Go 查询入口附加父进程监测，管理服务退出后子进程随之结束。Worker 取消任务时发送进程终止信号，超时后强制结束并回收。
+Android 将 `libyatori_console.so` 作为可执行文件打包到 `nativeLibraryDir`，使用解压原生库模式；ONNX 从同目录加载。程序通过 YATORI_MODEL_DIR 读取应用共享的原版模型资源；每个 APK 保存一份模型。Go 查询入口附加父进程监测，管理服务退出后子进程随之结束。Worker 取消任务时发送进程终止信号，超时后强制结束并回收。
 
 暂停与重启后恢复均通过重新启动 Console 完成。进程退出成功只标记「执行结束」；课程或章节完成依据查询结果展示。升级迁移停止旧任务并保留历史，旧任务需从账号页重新创建。管理 API 保留账号加密、CSRF、登录限流和局域网来源校验。
 
-仓库保留 0.5.x 适配器源码与回归样本用于历史兼容研究，位于 `engine/runtime`、`engine/consolelogic` 与 `backend/tests/legacy_worker.py`。0.6.0 的 Worker 与 Android 构建使用上述原版 Console 路径。
+仓库保留 0.5.x 适配器源码与回归样本用于历史兼容研究，位于 `engine/runtime`、`engine/consolelogic` 与 `backend/tests/legacy_worker.py`。0.6.1 的 Worker 与 Android 构建使用上述原版 Console 路径。

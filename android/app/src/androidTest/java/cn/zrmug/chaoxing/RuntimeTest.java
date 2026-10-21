@@ -88,15 +88,23 @@ public class RuntimeTest {
         com.chaquo.python.PyObject scope = Python.getInstance().getModule("builtins").callAttr("dict");
         scope.callAttr("__setitem__", "native_dir", context.getApplicationInfo().nativeLibraryDir);
         scope.callAttr("__setitem__", "test_dir", new File(context.getFilesDir(), "native-test").getAbsolutePath());
+        scope.callAttr("__setitem__", "model_dir", new File(context.getFilesDir(), "bundle/models").getAbsolutePath());
         Python.getInstance().getModule("builtins").callAttr("exec",
                 "from pathlib import Path\n" +
                 "from types import SimpleNamespace\n" +
                 "from backend.app.console_process import ConsoleProcess\n" +
-                "cfg = SimpleNamespace(data_dir=Path(test_dir), console_binary=native_dir + '/libyatori_console.so', onnx_library=native_dir + '/libonnxruntime.so')\n" +
+                "from backend.app.android.resources import prepare_resources, LEGACY_RESOURCES\n" +
+                "cfg = SimpleNamespace(data_dir=Path(test_dir), console_binary=native_dir + '/libyatori_console.so', onnx_library=native_dir + '/libonnxruntime.so', model_dir=model_dir)\n" +
+                "legacy = cfg.data_dir / 'console/1/assets'\n" +
+                "legacy.mkdir(parents=True, exist_ok=True)\n" +
+                "for name in LEGACY_RESOURCES: (legacy / name).write_bytes(b'old generated cache')\n" +
+                "prepare_resources(cfg.data_dir, Path(model_dir))\n" +
                 "logs = []\n" +
                 "for account in (1, 2):\n" +
                 "    result = ConsoleProcess(cfg).run(account, {}, '', [], lambda: None, lambda line, level: logs.append(line), 'selftest')\n" +
                 "    assert result['execution'] == 'yatori-go-console' and result['os'] == 'android'\n" +
+                "    assert result['models_checked'] == 3\n" +
+                "    assert not any((cfg.data_dir / 'console' / str(account) / 'assets' / name).exists() for name in LEGACY_RESOURCES)\n" +
                 "    assert not (cfg.data_dir / 'console' / str(account) / 'config.yaml').exists()\n" +
                 "    assert not (cfg.data_dir / 'console' / str(account) / 'query-result.json').exists()\n" +
                 "ConsoleProcess(cfg).run(3, {'setting': {'basicSetting': {'logLevel': 'INFO'}}, 'users': []}, '', [], lambda: None, lambda line, level: logs.append(line))\n" +

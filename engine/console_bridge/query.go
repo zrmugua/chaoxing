@@ -8,11 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	ort "github.com/yalue/onnxruntime_go"
 	core "github.com/yatori-dev/yatori-go-core/aggregation/xuexitong"
 	lg "github.com/yatori-dev/yatori-go-core/utils/log"
 	"yatori-go-console/config"
@@ -21,7 +23,7 @@ import (
 	consoleutils "yatori-go-console/utils"
 )
 
-var bridgeVersion = "0.6.0"
+var bridgeVersion = "0.6.1"
 
 const bridgeConsoleCommit = "017711107803f5232fea59446a5b8c801d4ca8b2"
 
@@ -73,6 +75,17 @@ func bridgeQuery(mode string) (any, error) {
 	}
 	consoleinit.YatoriConsoleInit()
 	if mode == "selftest" {
+		directory := os.Getenv("YATORI_MODEL_DIR")
+		if directory == "" {
+			directory = "assets"
+		}
+		for _, name := range []string{"common_old.onnx", "common_tencent.onnx", "calc_det.onnx"} {
+			inputs, outputs, err := ort.GetInputOutputInfo(filepath.Join(directory, name))
+			if err != nil || len(inputs) == 0 || len(outputs) == 0 {
+				return nil, fmt.Errorf("OCR model initialization failed: %s", name)
+			}
+		}
+		metadata["models_checked"] = 3
 		return metadata, nil
 	}
 	settings := config.ReadConfig("config.yaml")

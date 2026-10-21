@@ -68,6 +68,8 @@ class ConsoleProcess:
         env.update(XDG_CACHE_HOME=str(cache), LOCALAPPDATA=str(cache), YATORI_MANAGED="1")
         if self.config.onnx_library:
             env["YATORI_ONNX_LIBRARY"] = str(Path(self.config.onnx_library).resolve())
+        if self.config.model_dir:
+            env["YATORI_MODEL_DIR"] = str(Path(self.config.model_dir).resolve())
         if mode:
             env["YATORI_BRIDGE_MODE"] = mode
         child = None

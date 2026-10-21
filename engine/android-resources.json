@@ -1,0 +1,26 @@
+{
+  "core_files": {
+    "utils/YatoriCoreInit.go": "5b2f9b343782a952ec5b3131483c7c15479668925d51dd405d64e3b3dafe429b"
+  },
+  "ocr_files": {
+    "utils/Init.go": "366ec99c90dcdf68493b6edec0875748dd939069614d20e12268d89debfd810f",
+    "utils/ocr_lib_linux.go": "13005df68b1a5db300cb5cb57b649a8133b7fa9395e900d73abb1eeaea5688d0",
+    "utils/AutoVerification.go": "402971d86a387454c6119761e386e6b6fa8371fd2df08f840c7d4b96ef2605b6",
+    "utils/AutoDetectionForTencent.go": "6f1b0c1fc8a1e7b09bb10fb9d6f2a82a646d65ab0fd092ecbf1ac20da97b080f",
+    "utils/AutoDetctionForCalc.go": "f89b0b18a01cb54cb5a9dc8cc48677d786896a2e2ce4cf155a1c13d7089455fa"
+  },
+  "models": {
+    "common_old.onnx": {
+      "sha256": "b1d5e1344954355b10b40632062b8a9def06bcc33229fb667274662bf31dcf3f",
+      "bytes": 13606198
+    },
+    "common_tencent.onnx": {
+      "sha256": "996d14a8765cda0141ce55474ea9d7c73e00a2b2dfa948b5e19fd4a2c485c547",
+      "bytes": 11007860
+    },
+    "calc_det.onnx": {
+      "sha256": "a10c79fdfd91a3a4bb34ff57b4e93b77918cdce6836acf63e0f8fb2c3324ebf2",
+      "bytes": 10618399
+    }
+  }
+}

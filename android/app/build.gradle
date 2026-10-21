@@ -14,8 +14,8 @@ android {
         applicationId 'cn.zrmug.chaoxing'
         minSdk 26
         targetSdk 35
-        versionCode 12
-        versionName '0.6.0'
+        versionCode 13
+        versionName '0.6.1'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'SOURCE_URL', '"' + (System.getenv('SOURCE_URL') ?: 'https://github.com/zrmugua/chaoxing') + '"'
     }
@@ -23,6 +23,14 @@ android {
     productFlavors {
         device { dimension 'runtime'; ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' } }
         emulator { dimension 'runtime'; ndk { abiFilters 'x86_64' } }
+    }
+    splits {
+        abi {
+            enable providers.gradleProperty('consoleSplitApks').isPresent()
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a'
+            universalApk true
+        }
     }
     buildFeatures { buildConfig true }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
@@ -67,10 +75,15 @@ tasks.register('bundleConsoleAssets', Sync) {
     from(new File(sourceRoot, 'third_party/yatori-go-core/LICENSE')) { into 'console/licenses/yatori' }
     from(new File(sourceRoot, 'third_party/yatori-go-console/LICENSE')) { into 'console/licenses/yatori-console' }
     from(new File(sourceRoot, 'engine/licenses')) { into 'console/licenses/go' }
+    from(new File(projectDir, 'libs/console-resources/models')) { into 'console/models' }
     into layout.buildDirectory.dir('generated/consoleAssets')
     doFirst {
         if (!new File(sourceRoot, 'frontend/dist/index.html').isFile())
             throw new GradleException('Build frontend first: npm --prefix frontend ci && npm --prefix frontend run build')
+        ['common_old.onnx', 'common_tencent.onnx', 'calc_det.onnx'].each { name ->
+            if (!new File(projectDir, 'libs/console-resources/models/' + name).isFile())
+                throw new GradleException('Build Console resources first: python scripts/build_original_console.py')
+        }
     }
 }
 tasks.configureEach {

@@ -12,10 +12,60 @@ from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 PIN = ROOT / "engine/original-console.json"
+RESOURCE_PIN = ROOT / "engine/android-resources.json"
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def stage_module(original, target):
+    # Generated build copies are confined to this task's build directory.
+    assert target.resolve().parent == (ROOT / ".tools/original-console-build").resolve()
+    if target.exists():
+        for path in [target, *target.rglob("*")]:
+            path.chmod(path.stat().st_mode | stat.S_IWRITE)
+        shutil.rmtree(target)
+    shutil.copytree(original, target)
+    for path in [target, *target.rglob("*")]:
+        path.chmod(path.stat().st_mode | stat.S_IWRITE)
+
+
+def verify_inputs(directory, records):
+    for name, expected in records.items():
+        data = (directory / name).read_bytes().replace(b"\r\n", b"\n")
+        if hashlib.sha256(data).hexdigest() != expected:
+            raise SystemExit("Android resource input changed: " + name)
+
+
+def patch_android_resources(core, ocr):
+    pin = json.loads(RESOURCE_PIN.read_text(encoding="utf-8"))
+    verify_inputs(core, pin["core_files"])
+    verify_inputs(ocr, pin["ocr_files"])
+    path = core / "utils/YatoriCoreInit.go"
+    text = path.read_text(encoding="utf-8")
+    for name in ("tencentCollect.exe", "tencentPowSolve.exe"):
+        text = text.replace("//go:embed assets/" + name + "\n", "").replace('\t"' + name + '",\n', "")
+    path.write_text(text, encoding="utf-8")
+    path = ocr / "utils/ocr_lib_linux.go"
+    path.write_text(path.read_text(encoding="utf-8").replace("//go:build linux", "//go:build linux && !android"), encoding="utf-8")
+    path = ocr / "utils/Init.go"
+    path.write_text("//go:build !android\n\n" + path.read_text(encoding="utf-8"), encoding="utf-8")
+    shutil.copyfile(ROOT / "engine/android_resources/ocr_init.go", ocr / "utils/Init_android.go")
+    for name, model in (("AutoVerification.go", "common_old.onnx"), ("AutoDetectionForTencent.go", "common_tencent.onnx"),
+                        ("AutoDetctionForCalc.go", "calc_det.onnx")):
+        path = ocr / "utils" / name
+        text = path.read_text(encoding="utf-8")
+        text = text.replace('"./assets/' + model + '"', 'modelPath("' + model + '")')
+        path.write_text(text, encoding="utf-8")
+    destination = ROOT / "android/app/libs/console-resources/models"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name, record in pin["models"].items():
+        path = ocr / "utils/assets" / name
+        if sha(path) != record["sha256"] or path.stat().st_size != record["bytes"]:
+            raise SystemExit("Original OCR model changed: " + name)
+        shutil.copyfile(path, destination / name)
+    return pin["models"]
 
 
 def verify_sources():
@@ -60,30 +110,6 @@ def main():
             raise SystemExit(data["Error"])
         return Path(data["Dir"])
 
-    ocr_source = module("github.com/Changbaiqi/ddddocr-go@" + pin["ocr_version"])
-    ocr = cache / "ddddocr"
-    shutil.copytree(ocr_source, ocr, dirs_exist_ok=True)
-    for path in ocr.rglob("*"):
-        if path.is_file():
-            path.chmod(stat.S_IREAD | stat.S_IWRITE)
-    linux = ocr / "utils/ocr_lib_linux.go"
-    linux.write_text(linux.read_text(encoding="utf-8").replace("//go:build linux", "//go:build linux && !android"), encoding="utf-8")
-    (ocr / "utils/ocr_lib_android.go").write_text('''//go:build android
-package utils
-import "embed"
-//go:embed assets/common_old.onnx assets/common_tencent.onnx assets/calc_det.onnx
-var assets embed.FS
-func init() { sharedLibName = "libonnxruntime.so" }
-''', encoding="utf-8")
-    path = ocr / "utils/Init.go"
-    text = path.read_text(encoding="utf-8")
-    text = text.replace('os.WriteFile("./assets/"+sharedLibName, data, 0644)',
-                        'if os.Getenv("YATORI_ONNX_LIBRARY") == "" { os.WriteFile("./assets/"+sharedLibName, data, 0644) }')
-    text = text.replace('ort.SetSharedLibraryPath("./assets/" + sharedLibName)',
-                        'library := os.Getenv("YATORI_ONNX_LIBRARY")\n if library == "" { library = "./assets/" + sharedLibName }\n ort.SetSharedLibraryPath(library)')
-    path.write_text(text, encoding="utf-8")
-    with (source / "go.mod").open("a", encoding="utf-8") as file:
-        file.write("\nreplace github.com/Changbaiqi/ddddocr-go => " + ocr.as_posix() + "\n")
     if args.host:
         dest = ROOT / "bin" / ("yatori-console.exe" if os.name == "nt" else "yatori-console")
         dest.parent.mkdir(exist_ok=True)
@@ -91,6 +117,15 @@ func init() { sharedLibName = "libonnxruntime.so" }
                        cwd=source, env={**os.environ, "CGO_ENABLED": "1"}, check=True)
         print("Original Console built: " + str(dest))
         return
+    ocr_source = module("github.com/Changbaiqi/ddddocr-go@" + pin["ocr_version"])
+    core_source = module("github.com/yatori-dev/yatori-go-core@" + pin["core_version"])
+    ocr, core = cache / "ddddocr", cache / "core"
+    stage_module(ocr_source, ocr)
+    stage_module(core_source, core)
+    models = patch_android_resources(core, ocr)
+    with (source / "go.mod").open("a", encoding="utf-8") as file:
+        file.write("\nreplace github.com/Changbaiqi/ddddocr-go => " + ocr.as_posix() + "\n")
+        file.write("replace github.com/yatori-dev/yatori-go-core => " + core.as_posix() + "\n")
     ndk = Path(args.ndk or os.environ["ANDROID_NDK_HOME"])
     archive = cache / "onnxruntime-android.aar"
     if not archive.exists():
@@ -117,7 +152,8 @@ func init() { sharedLibName = "libonnxruntime.so" }
         print("Original Console built: " + abi, flush=True)
     (ROOT / "artifacts").mkdir(exist_ok=True)
     (ROOT / "artifacts/original-console-build.json").write_text(json.dumps({"commit": pin["commit"],
-        "bridge_sha256": sha(ROOT / "engine/console_bridge/query.go"), "binaries": binaries}, indent=2) + "\n", encoding="utf-8")
+        "bridge_sha256": sha(ROOT / "engine/console_bridge/query.go"), "models": models,
+        "android_ocr_init_sha256": sha(ROOT / "engine/android_resources/ocr_init.go"), "binaries": binaries}, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

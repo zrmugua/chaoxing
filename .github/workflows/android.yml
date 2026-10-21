@@ -54,7 +54,8 @@ jobs:
           SOURCE_URL: https://github.com/${{ github.repository }}/tree/${{ github.sha }}
         run: |
           chmod +x android/gradlew
-          android/gradlew -p android :app:assembleDeviceRelease :app:assembleEmulatorDebug :app:assembleEmulatorDebugAndroidTest :app:testDeviceReleaseUnitTest --stacktrace
+          android/gradlew -p android -PconsoleSplitApks=true :app:assembleDeviceRelease :app:testDeviceReleaseUnitTest --stacktrace
+          android/gradlew -p android :app:assembleEmulatorDebug :app:assembleEmulatorDebugAndroidTest --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: chaoxing-android-unsigned

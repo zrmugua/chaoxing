@@ -33,12 +33,15 @@ def start(data_dir, asset_dir, master_key, setup_token, port, native_dir):
     os.chdir(data_dir)
     from ..main import create_app
     from ..worker import Worker
+    from .resources import prepare_resources
     import uvicorn
     config = Config(data_dir, str(master_key), str(setup_token), False,
                     asset_dir / "web", vault_factory=AndroidVault, lan_only=True,
                     session_cookie="study_android_session",
                     console_binary=str(Path(str(native_dir)) / "libyatori_console.so"),
-                    onnx_library=str(Path(str(native_dir)) / "libonnxruntime.so"))
+                    onnx_library=str(Path(str(native_dir)) / "libonnxruntime.so"),
+                    model_dir=str(asset_dir / "models"))
+    prepare_resources(data_dir, asset_dir / "models")
     app = create_app(config)
     if not app.state.db.one("SELECT value FROM settings WHERE key='android_configured'"):
         app.state.db.set_setting("concurrency", 1)

@@ -18,7 +18,7 @@ APK 和镜像同时包含 Yatori 的 MIT 许可证。Yatori 的第三方 Go 依�
 
 ## 产品与界面参考
 
-[yatori-dev/yatori-go-console](https://github.com/yatori-dev/yatori-go-console) 的提交 `017711107803f5232fea59446a5b8c801d4ca8b2` 作为 0.6.0 本机可执行程序的完整运行源码，版权为 Copyright (c) 2023 ChangBaiQi，MIT 许可。章测解析同时取自其 Core 提交 `ddf52f884145ba9ab7e2ac9e187ba36205eec6ce` 的业务函数。来源、选用函数与适配文件哈希见 `engine/console-upstream.json`；许可证见 `third_party/yatori-go-console/LICENSE` 和 `third_party/yatori-go-core/LICENSE`。
+[yatori-dev/yatori-go-console](https://github.com/yatori-dev/yatori-go-console) 的提交 `017711107803f5232fea59446a5b8c801d4ca8b2` 作为 0.6.1 本机可执行程序的完整运行源码，版权为 Copyright (c) 2023 ChangBaiQi，MIT 许可。章测解析同时取自其 Core 提交 `ddf52f884145ba9ab7e2ac9e187ba36205eec6ce` 的业务函数。来源、选用函数与适配文件哈希见 `engine/console-upstream.json`；许可证见 `third_party/yatori-go-console/LICENSE` 和 `third_party/yatori-go-core/LICENSE`。
 
 [yatori-dev/yatori-config-generate](https://github.com/yatori-dev/yatori-config-generate) 的提交 `f4aba3eb3ee53b54478461c964e6dd3929ada531` 用于研究学习通配置字段、表单流程与 YAML 格式。对应字段转换和控制台表单在本项目中实现。
 
@@ -42,4 +42,4 @@ Android PyYAML 依赖 LibYAML 0.2.5，MIT，Copyright (c) 2017-2020 Ingy döt Ne
 
 ## 原版 Console 运行依赖
 
-当前链接依赖声明见 `engine/licenses/ORIGINAL_CONSOLE_LICENSES.txt`。OCR 依赖 `github.com/Changbaiqi/ddddocr-go` 的固定提交 `1896343369f8` 未附独立许可证文件，源码地址与该事实一同记录。Android 使用 Microsoft ONNX Runtime 1.22.0，MIT，完整许可证和第三方声明见 `android/licenses/onnxruntime-MIT.txt` 与 `android/licenses/onnxruntime-ThirdPartyNotices.txt`。构建副本的 Android 资源加载适配保存在构建脚本中。
+当前链接依赖声明见 `engine/licenses/ORIGINAL_CONSOLE_LICENSES.txt`。OCR 依赖 `github.com/Changbaiqi/ddddocr-go` 的固定提交 `1896343369f8` 未附独立许可证文件，源码地址与该事实一同记录。Android 使用 Microsoft ONNX Runtime 1.22.0，MIT，完整许可证和第三方声明见 `android/licenses/onnxruntime-MIT.txt` 与 `android/licenses/onnxruntime-ThirdPartyNotices.txt`。构建副本的 Android 资源加载适配保存在构建脚本和 engine/android_resources/ 中。三份共享模型的固定哈希见 engine/android-resources.json。
