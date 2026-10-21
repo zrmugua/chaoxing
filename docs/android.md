@@ -33,7 +33,7 @@ getprop ro.product.cpu.abilist
 在 UFI Tool 提供的安卓终端中，进入有权限的 shell 后可以安装并打开应用。文件路径按实际上传位置调整：
 
 ```sh
-pm install -r /sdcard/Download/chaoxing-console-0.5.2.apk
+pm install -r /sdcard/Download/chaoxing-console-0.5.3.apk
 am start -n cn.zrmug.chaoxing/.MainActivity --ez start_service true
 ```
 

@@ -17,6 +17,9 @@ type failure string
 
 func (e failure) Error() string { return string(e) }
 func errorCode(err error) string {
+	if manualReason(err) != "" {
+		return "manual_required"
+	}
 	var known failure
 	if errors.As(err, &known) {
 		return string(known)

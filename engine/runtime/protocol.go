@@ -27,6 +27,7 @@ type Response struct {
 	Value     float64 `json:"value,omitempty"`
 	CardIndex *int    `json:"card_index,omitempty"`
 	Message   string  `json:"message,omitempty"`
+	Reason    string  `json:"reason,omitempty"`
 }
 
 func ServeStdio() { Serve(os.Stdin, os.Stdout) }
@@ -78,6 +79,7 @@ func Serve(input io.Reader, output io.Writer) {
 			state.cancel()
 			if err != nil {
 				result.Code = errorCode(err)
+				result.Reason = manualReason(err)
 				if state.currentCard != nil && *state.currentCard >= 0 && *state.currentCard <= 10000 {
 					result.CardIndex = state.currentCard
 				}

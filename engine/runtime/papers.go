@@ -52,22 +52,14 @@ func hiddenFields(doc *goquery.Document) map[string]string {
 	return fields
 }
 func paperDocument(page string) (*goquery.Document, error) {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(page))
+	verification, err := verificationDocument(page)
 	if err != nil {
 		return nil, failure("parser_changed")
 	}
-	fields := hiddenFields(doc)
-	for _, key := range []string{"captchacaptchaid", "needface", "needcaptcha", "needverify"} {
-		if v := fields[key]; v != "" && v != "0" && v != "false" {
-			return nil, failure("manual_required")
-		}
+	if err := pageVerification(verification, true); err != nil {
+		return nil, err
 	}
-	for _, marker := range []string{"已截止，不能作答", "已过时效", "人脸识别", "考试须知", "待重考", "待重做"} {
-		if strings.Contains(page, marker) {
-			return nil, failure("manual_required")
-		}
-	}
-	return doc, nil
+	return goquery.NewDocumentFromReader(strings.NewReader(page))
 }
 func (r *Runtime) chapterPaper(course Course, supplied Job) (*paper, error) {
 	job, err := r.canonical(supplied)

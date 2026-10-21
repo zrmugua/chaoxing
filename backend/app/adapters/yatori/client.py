@@ -32,6 +32,17 @@ ERROR_MESSAGES = {
     "adapter_error": "Yatori 执行进程异常，已保留任务状态。",
 }
 RETRYABLE_CODES = {"network_error", "remote_error", "execution_timeout"}
+MANUAL_REASONS = {
+    "chapter_locked": "章节尚未开放，请在学习通核对解锁条件。",
+    "captcha": "页面要求输入验证码，请在学习通完成验证后重试。",
+    "face": "页面要求人脸识别，请在学习通完成验证后重试。",
+    "verification": "平台要求安全验证，请在学习通确认后重试。",
+    "rate_limit": "平台提示访问过于频繁，请稍后重试。",
+    "access_restricted": "平台限制了本次接口访问，请在学习通核对账号与课程访问状态。",
+    "paper_closed": "试卷已截止或已过作答时效，请在学习通核对。",
+    "paper_notice": "当前返回考试须知页面，请在学习通确认考试入口后重试。",
+    "paper_retake": "试卷处于待重考或待重做状态，请在学习通处理后重试。",
+}
 OPERATION_LABELS = {
     "initialize": "初始化学习通适配器", "login": "验证学习通登录",
     "list_courses": "读取课程列表", "list_chapters": "读取章节列表",
@@ -179,7 +190,8 @@ class YatoriAdapter:
                         card_index = result.get("card_index")
                         if type(card_index) is int and 0 <= card_index <= 10000:
                             stage += f"（第 {card_index + 1} 张任务卡）"
-                        raise AdapterError(code, f"{stage}：{ERROR_MESSAGES[code]}", code in RETRYABLE_CODES)
+                        detail = MANUAL_REASONS.get(result.get("reason"), ERROR_MESSAGES[code]) if code == "manual_required" else ERROR_MESSAGES[code]
+                        raise AdapterError(code, f"{stage}：{detail}", code in RETRYABLE_CODES)
                     data = result.get("data")
                     if operation == "export_cookies" and isinstance(data, list):
                         self._remember_log_cookies(data)

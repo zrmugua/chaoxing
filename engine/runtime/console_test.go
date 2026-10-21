@@ -37,6 +37,11 @@ func TestServeKeepsConsoleEventsSeparateFromRPCResults(t *testing.T) {
 	if err := decoder.Decode(&result); err != nil || !result.OK || result.ID != 2 {
 		t.Fatal("console output affected the RPC response")
 	}
+	fmt.Fprintln(send, `{"id":3,"op":"list_jobs","args":{"chapter":{"need_unlock":true}}}`)
+	var restricted Response
+	if err := decoder.Decode(&restricted); err != nil || restricted.Code != "manual_required" || restricted.Reason != "chapter_locked" {
+		t.Fatal("manual verification reason did not reach the RPC caller")
+	}
 }
 
 func TestConsoleCaptureFlushesOriginalOutput(t *testing.T) {

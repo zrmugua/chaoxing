@@ -1,8 +1,10 @@
 import io
 import json
 import sqlite3
+import pytest
 
 from backend.app.adapters.yatori import YatoriAdapter
+from backend.app.adapters.contracts import AdapterError, Job
 from backend.app.db import Database
 from backend.app.services import PlatformService
 from backend.app.worker import Worker
@@ -98,3 +100,23 @@ def test_console_request_urls_filter_task_signatures():
     result = redact(text)
     assert all(value not in result for value in ("private-dtoken", "private-server-token", "private-signature", "private-face", "private-duration"))
     assert "playingTime=10" in result and "nodeId_300-enc_" in result and "network unavailable" in result
+
+
+@pytest.mark.parametrize("reason,expected", [
+    ("captcha", "输入验证码"), ("face", "人脸识别"),
+    ("rate_limit", "访问过于频繁"), ("paper_notice", "考试须知"),
+    ("unknown", "要求人工处理"),
+])
+def test_manual_reason_reaches_task_error_text(reason, expected):
+    class Restricted(ConsoleProcess):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.stdout = io.StringIO("\n".join(json.dumps(value) for value in [
+                {"id": 1, "ok": True, "data": {"engine": "yatori"}},
+                {"id": 2, "ok": False, "code": "manual_required", "reason": reason, "card_index": 1},
+            ]) + "\n")
+    with YatoriAdapter({}, process_factory=Restricted) as adapter:
+        with pytest.raises(AdapterError) as error:
+            adapter.chapter_paper({}, Job("51", "300", "workid", "测验", False, 1, {}, {}))
+    assert error.value.code == "manual_required"
+    assert expected in str(error.value) and "第 2 张任务卡" in str(error.value)

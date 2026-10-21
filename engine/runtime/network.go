@@ -19,9 +19,9 @@ func validateURL(value *url.URL) error {
 		return failure("blocked_destination")
 	}
 	path := strings.ToLower(value.Path)
-	for _, marker := range []string{"processverify", "captcha", "/face/", "/faceid/", "/facephoto"} {
-		if strings.Contains(path, marker) {
-			return failure("manual_required")
+	for _, marker := range []struct{ path, reason string }{{"processverify", "verification"}, {"captcha", "captcha"}, {"/face/", "face"}, {"/faceid/", "face"}, {"/facephoto", "face"}} {
+		if strings.Contains(path, marker.path) {
+			return requireManual(marker.reason)
 		}
 	}
 	return nil
@@ -67,13 +67,14 @@ func (g guardedTransport) RoundTrip(request *http.Request) (*http.Response, erro
 		return nil, failure("parser_changed")
 	}
 	lower := strings.ToLower(string(body))
-	for _, marker := range []string{"请输入验证码", "请输入图片中的验证码", "人机验证", "安全验证", "访问过于频繁", "很抱歉，您所浏览的页面暂时不能访问", `title : "人脸识别"`, `id="captcha"`} {
-		if strings.Contains(lower, marker) {
-			return nil, failure("manual_required")
-		}
+	if response.StatusCode == 403 {
+		return nil, requireManual("access_restricted")
 	}
-	if response.StatusCode == 403 || response.StatusCode == 429 || response.StatusCode == 202 {
-		return nil, failure("manual_required")
+	if response.StatusCode == 429 {
+		return nil, requireManual("rate_limit")
+	}
+	if response.StatusCode == 202 {
+		return nil, requireManual("verification")
 	}
 	if response.StatusCode == 401 || (strings.Contains(lower, "<form") && strings.Contains(lower, `name="password"`)) {
 		return nil, failure("session_expired")
@@ -83,10 +84,31 @@ func (g guardedTransport) RoundTrip(request *http.Request) (*http.Response, erro
 	}
 	var challenge map[string]any
 	if json.Unmarshal(body, &challenge) == nil {
-		for _, key := range []string{"needFace", "needCaptcha", "needVerify"} {
-			if challenge[key] == true || challenge[key] == float64(1) {
-				return nil, failure("manual_required")
+		for _, flag := range []struct{ key, reason string }{{"needFace", "face"}, {"needCaptcha", "captcha"}, {"needVerify", "verification"}} {
+			if challenge[flag.key] == true || challenge[flag.key] == float64(1) {
+				return nil, requireManual(flag.reason)
 			}
+		}
+		if challenge["status"] == false || challenge["success"] == false || challenge["result"] == false {
+			for _, key := range []string{"msg", "message", "error"} {
+				if message, ok := challenge[key].(string); ok {
+					doc, err := verificationDocument(message)
+					if err != nil {
+						return nil, err
+					}
+					if err := pageVerification(doc, false); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+	} else {
+		doc, err := verificationDocument(string(body))
+		if err != nil {
+			return nil, err
+		}
+		if err := pageVerification(doc, false); err != nil {
+			return nil, err
 		}
 	}
 	// Normalize host-only cookies before the upstream cache exports them.

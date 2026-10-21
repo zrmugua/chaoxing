@@ -14,7 +14,7 @@ var assignment = regexp.MustCompile(`(?:window\.AttachmentSetting|\bmArg)\s*=\s*
 
 func taskData(page string) (map[string]any, error) {
 	if strings.Contains(page, "章节未开放") {
-		return nil, failure("manual_required")
+		return nil, requireManual("chapter_locked")
 	}
 	var selected map[string]any
 	offset := 0
@@ -56,7 +56,7 @@ func taskData(page string) (map[string]any, error) {
 
 func (r *Runtime) listJobs(course Course, chapter Chapter) ([]Job, error) {
 	if chapter.Locked {
-		return nil, failure("manual_required")
+		return nil, requireManual("chapter_locked")
 	}
 	courseID, err := courseInt(course, "courseId")
 	if err != nil {
