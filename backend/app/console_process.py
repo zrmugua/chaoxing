@@ -161,16 +161,23 @@ class ConsoleProcess:
                 except queue.Empty:
                     pass
             code = child.wait()
-            if code:
-                raise ConsoleError(f"Console 进程退出，退出码 {code}；请查看原始日志")
             if mode:
                 path = folder / "query-result.json"
                 if not path.is_file() or path.stat().st_size > 10_000_000:
                     raise ConsoleError("Console 查询未返回有效结果，请查看原始日志")
                 result = json.loads(path.read_text(encoding="utf-8"))
-                if not result.get("ok"):
-                    raise ConsoleError("Console 查询失败，请查看原始日志")
+                if not isinstance(result, dict) or not isinstance(result.get("ok"), bool):
+                    raise ConsoleError("Console 查询未返回有效结果，请查看原始日志")
+                if not result["ok"]:
+                    detail = result.get("error")
+                    raise ConsoleError(redact(detail, secrets) if isinstance(detail, str) and detail.strip() else "Console 查询失败，请查看原始日志")
+                if code:
+                    raise ConsoleError(f"Console 进程退出，退出码 {code}；请查看原始日志")
+                if "data" not in result:
+                    raise ConsoleError("Console 查询未返回有效结果，请查看原始日志")
                 return result["data"]
+            if code:
+                raise ConsoleError(f"Console 进程退出，退出码 {code}；请查看原始日志")
             return None
         except (OSError, ValueError) as error:
             raise ConsoleError("Console 启动或结果读取失败，请检查安装和设备存储空间") from error

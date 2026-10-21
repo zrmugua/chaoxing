@@ -102,6 +102,7 @@ def main():
     source = cache / "console"
     shutil.copytree(ROOT / "third_party/yatori-go-console", source, dirs_exist_ok=True)
     shutil.copyfile(ROOT / "engine/console_bridge/query.go", source / "bridge_query.go")
+    shutil.copyfile(ROOT / "engine/console_bridge/chapter_status.go", source / "bridge_chapter_status.go")
 
     def module(name):
         output = subprocess.check_output([go, "mod", "download", "-json", name], cwd=source)
@@ -153,6 +154,7 @@ def main():
     (ROOT / "artifacts").mkdir(exist_ok=True)
     (ROOT / "artifacts/original-console-build.json").write_text(json.dumps({"commit": pin["commit"],
         "bridge_sha256": sha(ROOT / "engine/console_bridge/query.go"), "models": models,
+        "chapter_status_sha256": sha(ROOT / "engine/console_bridge/chapter_status.go"),
         "android_ocr_init_sha256": sha(ROOT / "engine/android_resources/ocr_init.go"), "binaries": binaries}, indent=2) + "\n", encoding="utf-8")
 
 

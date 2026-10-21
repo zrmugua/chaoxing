@@ -19,6 +19,8 @@ jobs:
       - run: python scripts/build_engine.py
       - run: go test ./... && go test github.com/yatori-dev/yatori-go-core/api/xuexitong
         working-directory: engine
+      - run: go test -tags=consolebridge ./console_bridge/chapter_status.go ./console_bridge/chapter_status_test.go
+        working-directory: engine
       - run: python -m pytest -q
       - run: pip check
   frontend:

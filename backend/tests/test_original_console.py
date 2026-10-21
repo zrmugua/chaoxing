@@ -28,6 +28,9 @@ config = yaml.safe_load(Path('config.yaml').read_text(encoding='utf-8'))
 Path('observed.json').write_text(json.dumps({'config':config,'argv':sys.argv,'cache':os.environ['XDG_CACHE_HOME']}))
 print('original stdout fixture-secret', flush=True)
 print('original stderr', file=sys.stderr, flush=True)
+if config.get('query_error'):
+    Path('query-result.json').write_text(json.dumps({'ok':False,'error':config['query_error']}))
+    sys.exit(config.get('result_exit', 2))
 if config.get('hang'):
     Path('pid').write_text(str(os.getpid()))
     time.sleep(120)
@@ -80,6 +83,42 @@ def test_stop_reaps_real_child_and_removes_private_config(platform, fake_console
         ConsoleProcess(config, fake_console).run(1, {"hang": True}, "", [], control, lambda *_: None)
     assert children[0].poll() is not None
     assert not (config.data_dir / "console/1/config.yaml").exists()
+
+
+@pytest.mark.parametrize("exit_code", [0, 2])
+def test_query_error_surfaces_redacted_platform_message(platform, fake_console, exit_code):
+    config, _, _ = platform
+    with pytest.raises(ConsoleError) as caught:
+        ConsoleProcess(config, fake_console).run(1,
+            {"query_error": "平台提示：登录失效 fixture-secret token=private-token", "result_exit": exit_code},
+            "", ["fixture-secret"], lambda: None, lambda *_: None, "chapters")
+    message = str(caught.value)
+    assert "平台提示：登录失效" in message
+    assert "fixture-secret" not in message and "private-token" not in message
+    assert not (config.data_dir / "console/1/query-result.json").exists()
+
+
+def test_failed_progress_query_keeps_snapshot_and_exposes_reason(platform, fake_console):
+    config, app, client = platform
+    account = add_account(client)
+    course = add_course(app, account)
+    service = PlatformService(app.state.db, app.state.vault)
+    service.save_courses(account, [{"courseId": "100", "clazzId": "200", "title": "课程一", "original": {"courseId": "100"}}])
+    service.save_chapters(course, [{"id": "1", "title": "已完成章节", "has_finished": True}])
+    before = service.learning.snapshot(account)["courses"][0]
+    class Process:
+        def __init__(self, cfg): self.native = ConsoleProcess(cfg, fake_console)
+        def run(self, account_id, value, proxy, secrets, control, log, mode, original):
+            return self.native.run(account_id, value | {"query_error": "平台未返回章节进度；平台提示：请求参数不正确 account-canary-secret"}, proxy, secrets, control, log, mode, original)
+    assert client.post(f"/api/courses/{course}/sync").status_code == 200
+    worker = Worker(config, Process)
+    worker.run_task(worker.claim())
+    result = client.get(f"/api/accounts/{account}/learning").json()["courses"][0]
+    assert result["progress"] == before["progress"] == 100
+    assert result["progress_synced_at"] == before["progress_synced_at"]
+    assert result["progress_refresh_state"] == "failed"
+    assert "平台提示：请求参数不正确" in result["progress_refresh_message"]
+    assert "account-canary-secret" not in str(result)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX inherited process ownership")

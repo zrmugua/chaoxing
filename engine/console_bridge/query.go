@@ -23,7 +23,7 @@ import (
 	consoleutils "yatori-go-console/utils"
 )
 
-var bridgeVersion = "0.7.1"
+var bridgeVersion = "0.7.2"
 
 const bridgeConsoleCommit = "017711107803f5232fea59446a5b8c801d4ca8b2"
 
@@ -54,7 +54,7 @@ func init() {
 	response := bridgeResult{OK: err == nil, Data: result}
 	if err != nil {
 		fmt.Println("Console 查询：", err)
-		response.Error = "原版 Console 查询未成功，请查看运行日志"
+		response.Error = err.Error()
 		code = 2
 	}
 	encoded, err := json.Marshal(response)
@@ -144,16 +144,22 @@ func bridgeQuery(mode string) (any, error) {
 		for _, c := range chapters.Knowledge {
 			nodes = append(nodes, c.ID)
 		}
-		userID, _ := strconv.Atoi(cache.UserID)
-		courseID, _ := strconv.Atoi(course.CourseID)
-		states, err := core.ChapterFetchPointAction(cache, nodes, &chapters, classID, userID, course.Cpi, courseID)
+		userID, userErr := strconv.Atoi(cache.UserID)
+		courseID, courseErr := strconv.Atoi(course.CourseID)
+		if userErr != nil || courseErr != nil || userID <= 0 || courseID <= 0 {
+			return nil, fmt.Errorf("课程或账号编号无效或超出当前设备范围，请同步课程列表后重试")
+		}
+		states, err := queryChapterPoints(nodes, func(batch []int) (string, error) {
+			return cache.FetchChapterPointStatus(batch, classID, userID, course.Cpi, courseID, 3, nil)
+		})
 		if err != nil {
 			return nil, err
 		}
 		result := []map[string]any{}
-		for _, c := range states.Knowledge {
-			result = append(result, map[string]any{"id": strconv.Itoa(c.ID), "title": c.Name, "jobCount": c.PointTotal,
-				"has_finished": c.PointTotal > 0 && c.PointTotal == c.PointFinished, "need_unlock": c.Status == "locked"})
+		for _, c := range chapters.Knowledge {
+			point := states[c.ID]
+			result = append(result, map[string]any{"id": strconv.Itoa(c.ID), "title": c.Name, "jobCount": point.Total,
+				"has_finished": point.completed(), "need_unlock": c.Status == "locked"})
 		}
 		return result, nil
 	}

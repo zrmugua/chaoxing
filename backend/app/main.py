@@ -33,7 +33,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     else:
         db.set_setting("vault_check", vault.seal("study-console"))
     service = PlatformService(db, vault)
-    app = FastAPI(title="学习通管理平台", version="0.7.1", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="学习通管理平台", version="0.7.2", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db, app.state.vault = db, vault
 
     @app.exception_handler(RequestValidationError)
