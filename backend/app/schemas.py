@@ -62,6 +62,18 @@ class TaskAction(Input):
     action: Literal["pause", "resume", "stop", "retry"]
 
 
+class LearningSelection(Input):
+    course_ids: list[int] = Field(default_factory=list)
+    revision: int = Field(ge=0)
+    fingerprint: str | None = Field(default=None, min_length=64, max_length=64)
+
+
+class LearningAction(Input):
+    action: Literal["start", "pause", "resume", "stop", "refresh"]
+    revision: int | None = Field(default=None, ge=0)
+    fingerprint: str | None = Field(default=None, min_length=64, max_length=64)
+
+
 class SettingsUpdate(Input):
     concurrency: int = Field(ge=1, le=8)
     retry_seconds: int = Field(ge=5, le=3600)

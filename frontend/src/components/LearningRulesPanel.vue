@@ -18,8 +18,8 @@ import {
 } from 'naive-ui'
 import { api, errorText, post } from '../api'
 import type { Course, StudySettings } from '../types'
-const props = defineProps<{ accountId?: number }>()
-const emit = defineEmits<{ start: [] }>()
+const props = defineProps<{ accountId?: number; managedAccount?: boolean }>()
+const emit = defineEmits<{ start: []; saved: [] }>()
 const message = useMessage()
 const loading = ref(true),
   saving = ref(false),
@@ -85,9 +85,11 @@ async function load() {
   try {
     assign(await api(endpoint.value))
     if (props.accountId) {
-      courses.value = (await api<Course[]>('/courses')).filter(
-        (c) => c.account_id === props.accountId,
-      )
+      if (!props.managedAccount) {
+        courses.value = (await api<Course[]>('/courses')).filter(
+          (c) => c.account_id === props.accountId,
+        )
+      }
       const data = await api<any>(`/accounts/${props.accountId}/preferences`)
       preferences.inform_emails = data.inform_emails
       proxyConfigured.value = data.proxy_configured
@@ -109,8 +111,9 @@ async function sync() {
 }
 async function save(start = false) {
   if (
-    (scope.value === 'include' && !form.include_courses.length) ||
-    (scope.value === 'exclude' && !form.exclude_courses.length)
+    !props.managedAccount &&
+    ((scope.value === 'include' && !form.include_courses.length) ||
+      (scope.value === 'exclude' && !form.exclude_courses.length))
   ) {
     message.warning('请先选择课程，或将课程模式设为全部课程')
     return
@@ -135,6 +138,7 @@ async function save(start = false) {
     }
     assign(await api(endpoint.value, { method: 'PUT', body: JSON.stringify(form) }))
     message.success(props.accountId ? '账号学习配置已保存' : '默认学习配置已保存')
+    emit('saved')
     if (start) emit('start')
   } catch (e) {
     message.error(errorText(e))
@@ -146,6 +150,7 @@ async function reset() {
   try {
     assign(await api(endpoint.value, { method: 'DELETE' }))
     message.success('已跟随默认学习配置')
+    emit('saved')
   } catch (e) {
     message.error(errorText(e))
   }
@@ -163,11 +168,7 @@ onMounted(load)
           }}</NTag>
         </h2>
         <p>
-          {{
-            accountId
-              ? '选择该账号的课程范围、视频方式和答题策略'
-              : '设置账号共用的默认课程范围、视频方式和答题策略'
-          }}
+          {{ accountId ? '设置该账号的视频方式和答题策略' : '设置账号共用的视频方式和答题策略' }}
         </p>
       </div>
     </div>
@@ -176,22 +177,24 @@ onMounted(load)
     >
     <NAlert v-if="!loading && !error" type="info" :show-icon="false" class="mb-20">
       <template v-if="!accountId">
-        新账号和跟随默认配置的账号，创建学习任务时使用这里的规则。已保存专属配置的账号按各自的规则创建任务。
+        新账号和跟随默认配置的账号，在开始学习或应用选择时使用这里的规则。账号专属配置优先于默认规则；课程范围以账号页保存的选择为准。
       </template>
       <template v-else-if="overridden">
-        当前使用账号专属配置，保存后用于该账号的新任务。点击「跟随默认配置」可恢复使用系统默认规则。
+        当前使用账号专属配置。保存后，在账号页开始学习或点击「保存并应用」生效。点击「跟随默认配置」可恢复使用系统默认规则。
       </template>
       <template v-else>
-        当前跟随系统默认学习配置。保存此页后，该账号将使用专属配置创建新任务。默认规则可在「系统设置
-        → 默认学习配置」中调整。
+        当前跟随系统默认学习配置。保存此页后，该账号将使用专属配置。默认规则可在「系统设置 →
+        默认学习配置」中调整。
       </template>
     </NAlert>
     <NSpin :show="loading"
       ><NForm label-placement="top" @submit.prevent="save()">
-        <NFormItem label="课程模式"
+        <NFormItem v-if="!managedAccount" label="课程模式"
           ><NSelect v-model:value="scope" :options="scopeOptions" @update:value="changeScope"
         /></NFormItem>
-        <NFormItem v-if="scope === 'include' || scope === 'custom'" label="仅学习这些课程"
+        <NFormItem
+          v-if="!managedAccount && (scope === 'include' || scope === 'custom')"
+          label="仅学习这些课程"
           ><NSelect
             v-model:value="form.include_courses"
             multiple
@@ -201,7 +204,9 @@ onMounted(load)
             :options="courseOptions"
             placeholder="选择课程，或输入完整名称 / 编号"
         /></NFormItem>
-        <NFormItem v-if="scope === 'exclude' || scope === 'custom'" label="排除这些课程"
+        <NFormItem
+          v-if="!managedAccount && (scope === 'exclude' || scope === 'custom')"
+          label="排除这些课程"
           ><NSelect
             v-model:value="form.exclude_courses"
             multiple
@@ -211,7 +216,7 @@ onMounted(load)
             :options="courseOptions"
             placeholder="选择要排除的课程"
         /></NFormItem>
-        <div v-if="accountId" class="row-actions mb-20">
+        <div v-if="accountId && !managedAccount" class="row-actions mb-20">
           <NButton size="small" @click="sync">同步账号课程</NButton
           ><NButton size="small" @click="load">刷新课程选项</NButton
           ><span class="muted">已同步 {{ courses.length }} 门课程</span>
@@ -271,19 +276,15 @@ onMounted(load)
               ? '任务会保存匹配到的答案，试卷交卷由你在学习通完成。'
               : '本配置允许自动交卷，启动前请核对课程范围和答题服务。'
           }}
-          模式 2 仅对章测检查空题，课程作业和考试仍会自动交卷。具体结果请查看 Console 原始日志。
+          <template v-if="form.submit_mode === 'complete' && (form.work || form.exam)"
+            >章测无空题时交卷；课程作业和考试按自动交卷方式执行。</template
+          >
         </NAlert>
         <NCollapse
           ><NCollapseItem title="学习内容与执行参数" name="advanced"
             ><div class="settings-fields">
               <NFormItem
-                v-for="item in [
-
-
-
-
-                  ['shuffle', '随机学习顺序'],
-                ] as const"
+                v-for="item in [['shuffle', '随机学习顺序']] as const"
                 :key="item[0]"
                 :label="item[1]"
                 ><NSwitch v-model:value="form[item[0]]" :aria-label="item[1]"
@@ -302,16 +303,14 @@ onMounted(load)
                 type="password"
                 show-password-on="click"
                 autocomplete="new-password"
-                :placeholder="
-                  proxyConfigured ? '已配置，留空保留' : 'http://主机:端口'
-                "
+                :placeholder="proxyConfigured ? '已配置，留空保留' : 'http://主机:端口'"
             /></NFormItem>
             <NFormItem v-if="proxyConfigured" label="清除已保存代理"
               ><NSwitch v-model:value="clearProxy" aria-label="清除已保存代理"
             /></NFormItem> </NCollapseItem
         ></NCollapse>
         <p class="settings-note">
-          App 按选中的课程名称生成配置。音频、文档、阅读和外链由原版 Console 的流程处理。每次运行保存账号规则快照。
+          音频、文档、阅读和外链按 Yatori 学习流程处理。运行记录会保存当次使用的规则。
         </p>
         <div class="settings-actions">
           <NButton v-if="accountId && overridden" :disabled="saving" @click="reset"
@@ -320,7 +319,7 @@ onMounted(load)
             accountId ? '保存账号配置' : '保存默认配置'
           }}</NButton
           ><NButton
-            v-if="accountId"
+            v-if="accountId && !managedAccount"
             type="primary"
             :loading="saving"
             :disabled="loading || !!error"

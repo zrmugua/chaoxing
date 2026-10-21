@@ -37,7 +37,11 @@ const answerLabels = {
   question_bank: '外置题库',
   chaoxing_ai: '学习通内置 AI',
 }
-const submitLabels = { save: '不交卷，只保存', submit: '答题后直接交卷', complete: '章测无空题时交卷（模式 2）' }
+const submitLabels = {
+  save: '不交卷，只保存',
+  submit: '答题后直接交卷',
+  complete: '章测无空题时交卷（模式 2）',
+}
 async function load() {
   plan.value = null
   error.value = ''
@@ -61,9 +65,7 @@ async function start() {
       { fingerprint: plan.value.fingerprint },
     )
     message.success(
-      props.courseId
-        ? '学习任务已加入队列'
-        : `已创建 Console 任务，包含 ${result.selected} 门课程`,
+      props.courseId ? '学习任务已加入队列' : `已创建 Console 任务，包含 ${result.selected} 门课程`,
     )
     emit('update:show', false)
     emit('started')
@@ -124,7 +126,15 @@ watch(
               ? '本次运行允许自动交卷，请确认课程与配置。'
               : '任务在后台执行，关闭浏览器后仍会继续。'
           }}
-          模式 2 对课程作业和考试执行自动交卷。由本机 yatori-go-console 执行。音频、文档、阅读和外链按 Console 流程处理；暂停会结束进程，继续时重新启动。</NAlert
+          <template
+            v-if="
+              plan.rules.answer_mode !== 'off' &&
+              plan.rules.submit_mode === 'complete' &&
+              (plan.rules.work || plan.rules.exam)
+            "
+            >课程作业和考试按自动交卷方式执行。</template
+          >
+          音频、文档、阅读和外链按 Yatori 学习流程处理；暂停后可继续学习。</NAlert
         ></template
       >
       <NSpace justify="end"

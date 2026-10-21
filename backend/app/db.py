@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS assessments(id INTEGER PRIMARY KEY,course_id INTEGER 
  remote_id TEXT NOT NULL,kind TEXT NOT NULL,title TEXT NOT NULL,status TEXT NOT NULL,remaining TEXT NOT NULL,
  synced_at REAL NOT NULL,UNIQUE(course_id,kind,remote_id));
 CREATE TABLE IF NOT EXISTS runtime(id INTEGER PRIMARY KEY CHECK(id=1), heartbeat REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS account_learning(account_id INTEGER PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+ selected_course_ids TEXT NOT NULL DEFAULT '[]', revision INTEGER NOT NULL DEFAULT 0, execution_rules TEXT,
+ desired_state TEXT NOT NULL DEFAULT 'stopped', state TEXT NOT NULL DEFAULT 'idle', message TEXT NOT NULL DEFAULT '',
+ current_task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL, active_course_titles TEXT NOT NULL DEFAULT '[]',
+ latest_activity TEXT, refresh_pending INTEGER NOT NULL DEFAULT 0, refresh_error TEXT, updated_at REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS question_sets(id INTEGER PRIMARY KEY, course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
  chapter_id TEXT NOT NULL, job_id TEXT NOT NULL, payload TEXT NOT NULL, updated_at REAL NOT NULL,
  UNIQUE(course_id,chapter_id,job_id));
@@ -70,6 +75,32 @@ class Database:
                 conn.execute("UPDATE tasks SET state='stopped',updated_at=?,finished_at=?,message='已升级 Console 运行方式，请从账号或课程页确认配置后重新启动' WHERE state IN ('queued','running','pausing','stopping','recovering','paused')", (now, now))
                 conn.execute("UPDATE runs SET state='interrupted',finished_at=? WHERE finished_at IS NULL", (now,))
                 conn.execute("INSERT INTO schema_migrations VALUES(3,?)", (now,))
+            course_columns = {row["name"] for row in conn.execute("PRAGMA table_info(courses)")}
+            if "progress_synced_at" not in course_columns:
+                conn.execute("ALTER TABLE courses ADD COLUMN progress_synced_at REAL")
+                conn.execute("UPDATE courses SET progress_synced_at=(SELECT MAX(synced_at) FROM chapters WHERE course_id=courses.id)")
+            if "available" not in course_columns:
+                conn.execute("ALTER TABLE courses ADD COLUMN available INTEGER NOT NULL DEFAULT 1")
+            if "execution_rules" not in {row["name"] for row in conn.execute("PRAGMA table_info(account_learning)")}:
+                conn.execute("ALTER TABLE account_learning ADD COLUMN execution_rules TEXT")
+            if not conn.execute("SELECT 1 FROM schema_migrations WHERE version=4").fetchone():
+                now = time.time()
+                for account in conn.execute("SELECT id FROM accounts").fetchall():
+                    task = conn.execute("SELECT * FROM tasks WHERE account_id=? AND kind='study' AND state IN ('queued','running','pausing','stopping','recovering','paused') ORDER BY updated_at DESC,id DESC LIMIT 1", (account["id"],)).fetchone()
+                    selected = []
+                    if task:
+                        checkpoint = json.loads(task["checkpoint"])
+                        titles = checkpoint.get("course_titles", [])
+                        courses = conn.execute("SELECT id,title FROM courses WHERE account_id=? ORDER BY id", (account["id"],)).fetchall()
+                        selected = [course["id"] for course in courses if course["id"] in checkpoint.get("selected_course_ids", []) or (course["id"] == task["course_id"] if task["course_id"] else course["title"] in titles)]
+                    state = "stopped" if task and task["state"] == "stopping" else "paused" if task else "idle"
+                    conn.execute("INSERT OR IGNORE INTO account_learning(account_id,selected_course_ids,desired_state,state,message,updated_at) VALUES(?,?,?,?,?,?)",
+                                 (account["id"], json.dumps(selected), "paused" if state == "paused" else "stopped", state, "课程选择已保留" if task else "", now))
+                    if task:
+                        conn.execute("UPDATE account_learning SET execution_rules=? WHERE account_id=?", (json.dumps(checkpoint.get("options")) if checkpoint.get("options") else None, account["id"]))
+                conn.execute("UPDATE tasks SET state=CASE WHEN state='stopping' THEN 'stopped' ELSE 'paused' END,updated_at=?,message='课程选择已保留，可从账号页继续学习' WHERE kind='study' AND state IN ('queued','running','pausing','stopping','recovering')", (now,))
+                conn.execute("UPDATE runs SET state='interrupted',finished_at=? WHERE finished_at IS NULL AND task_id IN (SELECT id FROM tasks WHERE kind='study')", (now,))
+                conn.execute("INSERT INTO schema_migrations VALUES(4,?)", (now,))
 
     @contextlib.contextmanager
     def connect(self, immediate=False):

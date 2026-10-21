@@ -30,6 +30,41 @@ export interface Chapter {
   locked: boolean
   synced_at: Timestamp | null
 }
+export interface LearningCourse extends Course {
+  available: boolean
+  chapter_count: number
+  confirmed_chapters: number
+  progress: number | null
+  progress_synced_at: Timestamp | null
+}
+export type LearningAction = 'start' | 'pause' | 'resume' | 'stop' | 'refresh'
+export interface AccountLearning {
+  account: Account
+  courses: LearningCourse[]
+  selected_course_ids: number[]
+  revision: number
+  state:
+    | 'idle'
+    | 'queued'
+    | 'running'
+    | 'applying'
+    | 'pausing'
+    | 'paused'
+    | 'stopping'
+    | 'stopped'
+    | 'refreshing'
+    | 'completed'
+    | 'failed'
+  desired_state: 'running' | 'paused' | 'stopped'
+  message: string
+  worker_online: boolean
+  active_course_titles: string[]
+  running_course_titles: string[]
+  latest_activity: { message: string; created_at: Timestamp; course_title: string | null } | null
+  current_task_id: number | null
+  refresh_pending: boolean
+  refresh_error: string | null
+}
 export interface Task {
   id: number
   account_id: number

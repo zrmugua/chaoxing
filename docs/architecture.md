@@ -1,6 +1,6 @@
 # 项目架构
 
-Vue 3 / Naive UI 提供管理网页，FastAPI 提供管理员鉴权与配置 API，SQLite 保存账号、任务和日志。Android 前台服务承载 Web 服务与 Worker。Worker 管理原版 yatori-go-console 进程的生命周期。
+Vue 3 / Naive UI 提供账号列表与账号详情，FastAPI 提供管理员鉴权、学习清单和配置 API，SQLite 保存账号学习状态、执行历史和日志。Android 前台服务承载 Web 服务与 Worker。Worker 管理原版 yatori-go-console 进程的生命周期。
 
 | 路径 | 职责 |
 | --- | --- |
@@ -8,6 +8,7 @@ Vue 3 / Naive UI 提供管理网页，FastAPI 提供管理员鉴权与配置 API
 | `engine/original-console.json` | 原版源码与运行库校验信息 |
 | `engine/console_bridge/query.go` | 课程查询入口与父进程存活监测 |
 | `backend/app/console_process.py` | 生成私有配置、启动程序、采集输出与结束进程 |
+| `backend/app/account_learning.py` | 持久账号清单、运行意图、版本校验和执行状态协调 |
 | `backend/app/worker.py` | 持久队列、账号串行、运行记录 |
 | `frontend/` | 配置、课程、进程状态与日志展示 |
 | `android/` | AndroidKeyStore、前台服务、原生可执行文件打包 |
@@ -18,6 +19,8 @@ Vue 3 / Naive UI 提供管理网页，FastAPI 提供管理员鉴权与配置 API
 
 Android 将 `libyatori_console.so` 作为可执行文件打包到 `nativeLibraryDir`，使用解压原生库模式；ONNX 从同目录加载。程序通过 YATORI_MODEL_DIR 读取应用共享的原版模型资源；每个 APK 保存一份模型。Go 查询入口附加父进程监测，管理服务退出后子进程随之结束。Worker 取消任务时发送进程终止信号，超时后强制结束并回收。
 
-暂停与重启后恢复均通过重新启动 Console 完成。进程退出成功只标记「执行结束」；课程或章节完成依据查询结果展示。升级迁移停止旧任务并保留历史，旧任务需从账号页重新创建。管理 API 保留账号加密、CSRF、登录限流和局域网来源校验。
+账号清单与运行意图保存在 `account_learning`。修改清单时校验版本，后台等待当前进程结束并回收后应用最新选择。暂停、停止和继续作用于账号；`tasks` 和 `runs` 保存执行快照与历史。查询同账号课程及章节时串行运行，查询完成后按账号最新意图恢复学习。
 
-仓库保留 0.5.x 适配器源码与回归样本用于历史兼容研究，位于 `engine/runtime`、`engine/consolelogic` 与 `backend/tests/legacy_worker.py`。0.6.1 的 Worker 与 Android 构建使用上述原版 Console 路径。
+暂停与重启后恢复均通过重新启动 Console 完成。服务重启后，正在学习的账号保持暂停。进程退出成功只标记「执行结束」；章节完成比例和同步时间来自查询结果。当前课程从 Console 明确的课程活动日志提取，多课程模式支持同时展示。0.7.0 迁移已有账号的学习清单并保留历史。管理 API 保留账号加密、CSRF、登录限流和局域网来源校验。
+
+仓库保留 0.5.x 适配器源码与回归样本用于历史兼容研究，位于 `engine/runtime`、`engine/consolelogic` 与 `backend/tests/legacy_worker.py`。0.7.0 的 Worker 与 Android 构建使用上述原版 Console 路径。

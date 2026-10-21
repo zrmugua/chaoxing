@@ -54,11 +54,11 @@ async function submit() {
           <span>学习通<span>学习管理控制台</span></span>
         </a>
         <div class="eyebrow">CHAOXING CONTROL CONSOLE</div>
-        <h1>看清学习进度，<br />安排每一次任务。</h1>
-        <p>集中管理账号、课程与学习任务，<br />通过运行记录与系统日志，掌握每一次执行。</p>
+        <h1>选好课程，<br />掌握学习进度。</h1>
+        <p>进入账号即可选择课程并开始学习，<br />实时查看课程活动、平台进度和原始日志。</p>
         <div class="login-story-features">
           <div><strong>统一管理</strong><span>账号与课程集中查看</span></div>
-          <div><strong>运行可追踪</strong><span>任务进度与日志随时掌握</span></div>
+          <div><strong>学习可追踪</strong><span>课程进度与日志随时查看</span></div>
         </div>
       </div>
       <div class="login-story-footer">CHAOXING CONSOLE<span>学习管理工作台</span></div>
@@ -139,7 +139,7 @@ async function submit() {
         </NForm>
         <div class="login-security">
           <ShieldCheck :size="16" />
-          <span>管理员统一管理账号、任务与运行记录。</span>
+          <span>管理员统一管理账号、课程与学习记录。</span>
         </div>
       </div>
       <div class="login-panel-footer">学习通 · 学习管理控制台</div>

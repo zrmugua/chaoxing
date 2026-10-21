@@ -56,7 +56,8 @@ def install_settings_routes(app, db, vault, service, authenticated):
         plan = service.study_plan(account_id)
         if body is not None and body.fingerprint != plan["fingerprint"]:
             raise HTTPException(409, "学习规则或课程已更新，请重新查看启动摘要")
-        result = service.queue_courses(account_id, plan)
+        task = service.learning.compatibility_start(account_id, [course["id"] for course in plan["courses"]], body.fingerprint if body else None)
+        result = {"tasks": [task], "selected": len(plan["courses"]), "skipped": 0}
         result["tasks"] = [{k: v for k, v in task.items() if k != "checkpoint"} for task in result["tasks"]]
         return result
 

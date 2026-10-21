@@ -5,13 +5,22 @@ export default createRouter({
   routes: [
     {
       path: '/',
-      component: () => import('./pages/DashboardPage.vue'),
-      meta: { title: '仪表盘', description: '账号、课程与任务的实时概况' },
+      redirect: '/accounts',
     },
     {
       path: '/accounts',
       component: () => import('./pages/AccountsPage.vue'),
-      meta: { title: '账号管理', description: '管理账号凭据与独立登录会话' },
+      meta: { title: '学习账号', description: '进入账号，选择课程并管理学习' },
+    },
+    {
+      path: '/accounts/:id',
+      component: () => import('./pages/AccountLearningPage.vue'),
+      meta: { title: '账号学习', description: '课程选择、学习进度与实时日志' },
+    },
+    {
+      path: '/dashboard',
+      component: () => import('./pages/DashboardPage.vue'),
+      meta: { title: '运行概况', description: '账号、课程与后台运行概况' },
     },
     {
       path: '/courses',

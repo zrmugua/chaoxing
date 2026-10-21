@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
 import time
 
 import pytest
@@ -79,6 +80,91 @@ def test_stop_reaps_real_child_and_removes_private_config(platform, fake_console
         ConsoleProcess(config, fake_console).run(1, {"hang": True}, "", [], control, lambda *_: None)
     assert children[0].poll() is not None
     assert not (config.data_dir / "console/1/config.yaml").exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX inherited process ownership")
+def test_orphan_child_owns_account_directory_until_exit(platform, fake_console):
+    import signal
+    config, _, _ = platform
+    script = """import json, sys
+from pathlib import Path
+from types import SimpleNamespace
+from backend.app.console_process import ConsoleProcess
+config = SimpleNamespace(data_dir=Path(sys.argv[1]), onnx_library='', model_dir='')
+ConsoleProcess(config, json.loads(sys.argv[2])).run(1, {'hang': True, 'password': 'fixture-secret'}, '', [], lambda: None, lambda *_: None)
+"""
+    parent = subprocess.Popen([sys.executable, "-c", script, str(config.data_dir), json.dumps(fake_console)],
+                              cwd=Path(__file__).resolve().parents[2], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    folder = config.data_dir / "console/1"
+    native_pid = None
+    contender = None
+    results = []
+    errors = []
+    waiting = threading.Event()
+    checks = 0
+
+    def control():
+        nonlocal checks
+        checks += 1
+        if checks >= 3:
+            waiting.set()
+
+    def replace():
+        try:
+            results.append(ConsoleProcess(config, fake_console).run(1, {}, "", [], control, lambda *_: None, "courses"))
+        except BaseException as error:
+            errors.append(error)
+
+    try:
+        deadline = time.monotonic() + 10
+        while not (folder / "pid").is_file() and time.monotonic() < deadline:
+            assert parent.poll() is None, "Fixture parent exited before spawning its Console child"
+            time.sleep(0.02)
+        assert (folder / "pid").is_file()
+        native_pid = int((folder / "pid").read_text())
+        parent.kill()
+        parent.wait(timeout=5)
+        original_config = (folder / "config.yaml").read_bytes()
+        (folder / "query-result.json").write_text("owned by running child")
+        contender = threading.Thread(target=replace, daemon=True)
+        contender.start()
+        assert waiting.wait(5), "Replacement did not wait for the account directory owner"
+        assert contender.is_alive()
+        assert (folder / "config.yaml").read_bytes() == original_config
+        assert (folder / "query-result.json").read_text() == "owned by running child"
+        os.kill(native_pid, signal.SIGTERM)
+        native_pid = None
+        contender.join(timeout=10)
+        assert not contender.is_alive()
+        assert errors == []
+        assert results == [[]]
+        assert not (folder / "config.yaml").exists()
+        assert not (folder / "query-result.json").exists()
+    finally:
+        if parent.poll() is None:
+            parent.kill()
+        parent.wait(timeout=5)
+        if native_pid is not None:
+            try:
+                os.kill(native_pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        if contender is not None:
+            contender.join(timeout=5)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX inherited process ownership")
+def test_waiting_for_account_directory_remains_cancellable(platform, fake_console):
+    config, _, _ = platform
+    folder = config.data_dir / "console/1"
+    folder.mkdir(parents=True)
+    (folder / "config.yaml").write_text("current owner")
+    def cancel():
+        raise TaskInterrupted("paused")
+    with ConsoleProcess.ownership(folder, lambda: None):
+        with pytest.raises(TaskInterrupted):
+            ConsoleProcess(config, fake_console).run(1, {}, "", [], cancel, lambda *_: None)
+        assert (folder / "config.yaml").read_text() == "current owner"
 
 
 def test_account_batch_uses_original_yaml_and_process_exit_is_not_course_completion(platform):

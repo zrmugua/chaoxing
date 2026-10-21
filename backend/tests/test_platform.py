@@ -165,8 +165,9 @@ def study_setup(platform, adapter_type):
     config, app, client = platform
     account_id = add_account(client)
     course_id = add_course(app, account_id)
-    client.post(f"/api/courses/{course_id}/study")
     worker = Worker(config, adapter_type)
+    # Keep the historical adapter fixture independent of account lifecycle APIs.
+    worker.service.queue(account_id, "study", course_id)
     return worker, worker.claim()
 
 

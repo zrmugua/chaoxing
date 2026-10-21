@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from .ai import preview_answer, validate_endpoint
 from .config import Config
 from .db import Database
-from .schemas import AccountCreate, AccountUpdate, AISettings, AIPreview, Login, SettingsUpdate, Setup, TaskAction, PlanStart
+from .schemas import AccountCreate, AccountUpdate, AISettings, AIPreview, Login, SettingsUpdate, Setup, TaskAction, PlanStart, LearningSelection, LearningAction
 from .security import Vault, digest, password_hash, password_matches
 from .services import ACTIVE, PlatformService
 from .adapters.contracts import AdapterError
@@ -33,7 +33,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     else:
         db.set_setting("vault_check", vault.seal("study-console"))
     service = PlatformService(db, vault)
-    app = FastAPI(title="学习通管理平台", version="0.6.1", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="学习通管理平台", version="0.7.0", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db, app.state.vault = db, vault
 
     @app.exception_handler(RequestValidationError)
@@ -203,6 +203,18 @@ def create_app(config: Config | None = None) -> FastAPI:
     def account_sync(account_id: int):
         return public_task(service.queue(account_id, "sync_courses"))
 
+    @app.get("/api/accounts/{account_id}/learning", dependencies=[Depends(authenticated)])
+    def account_learning(account_id: int):
+        return service.learning.snapshot(account_id)
+
+    @app.put("/api/accounts/{account_id}/learning", dependencies=[Depends(authenticated)])
+    def save_account_learning(account_id: int, body: LearningSelection):
+        return service.learning.save(account_id, body.course_ids, body.revision, body.fingerprint)
+
+    @app.post("/api/accounts/{account_id}/learning/action", dependencies=[Depends(authenticated)])
+    def account_learning_action(account_id: int, body: LearningAction):
+        return service.learning.action(account_id, body.action, body.revision, body.fingerprint)
+
     @app.get("/api/courses", dependencies=[Depends(authenticated)])
     def courses(account_id: int | None = None):
         sql = "SELECT id,account_id,remote_id,clazz_id,title,teacher,synced_at FROM courses"
@@ -223,7 +235,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         plan = service.study_plan(account_id, course_id)
         if body is not None and body.fingerprint != plan["fingerprint"]:
             raise HTTPException(409, "学习规则已更新，请重新查看启动摘要")
-        return public_task(service.queue(account_id, "study", course_id, options=plan["rules"], selected_courses=plan["courses"]))
+        return public_task(service.learning.compatibility_start(account_id, [course["id"] for course in plan["courses"]], body.fingerprint if body else None, course_id=course_id))
 
     @app.get("/api/courses/{course_id}/questions", dependencies=[Depends(authenticated)])
     def questions(course_id: int):
@@ -241,8 +253,9 @@ def create_app(config: Config | None = None) -> FastAPI:
         return public_task(service.action(task_id, body.action))
 
     @app.get("/api/runs", dependencies=[Depends(authenticated)])
-    def runs(limit: int = Query(default=200, ge=1, le=1000)):
-        return db.rows("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,))
+    def runs(limit: int = Query(default=200, ge=1, le=1000), account_id: int | None = None):
+        sql = "SELECT r.*,t.account_id FROM runs r JOIN tasks t ON t.id=r.task_id"
+        return db.rows(sql + (" WHERE t.account_id=?" if account_id is not None else "") + " ORDER BY r.id DESC LIMIT ?", (account_id, limit) if account_id is not None else (limit,))
 
     @app.get("/api/logs", dependencies=[Depends(authenticated)])
     def logs(after: int = Query(default=0, ge=0), task_id: int | None = None,

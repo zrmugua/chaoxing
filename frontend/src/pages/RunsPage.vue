@@ -1,14 +1,57 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { NAlert, NButton, NInputNumber, NTag } from 'naive-ui'
 import { RefreshCw } from 'lucide-vue-next'
 import PageHeading from '../components/PageHeading.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { useResource } from '../composables/useResource'
+import { api, errorText } from '../api'
 import { date, duration, label, statusType } from '../format'
 import type { Run } from '../types'
 
-const { data, error, loading, refresh } = useResource<Run[]>('/runs', [], 5000)
+const route = useRoute()
+const accountId = computed(() => Number(route.query.account_id) || null)
+const data = ref<Run[]>([])
+const error = ref('')
+const loading = ref(false)
+let request = 0
+let alive = true
+let timer: ReturnType<typeof setTimeout> | undefined
+let controller = new AbortController()
+async function refresh() {
+  const current = ++request
+  controller.abort()
+  controller = new AbortController()
+  loading.value = true
+  try {
+    const next = await api<Run[]>(
+      `/runs${accountId.value ? `?account_id=${accountId.value}` : ''}`,
+      { signal: controller.signal },
+    )
+    if (alive && current === request) {
+      data.value = next
+      error.value = ''
+    }
+  } catch (e) {
+    if (alive && current === request) error.value = errorText(e)
+  } finally {
+    if (alive && current === request) loading.value = false
+  }
+}
+async function poll() {
+  if (!document.hidden) await refresh()
+  if (alive) timer = setTimeout(poll, 5000)
+}
+watch(accountId, () => {
+  data.value = []
+  void refresh()
+})
+void poll()
+onUnmounted(() => {
+  alive = false
+  controller.abort()
+  if (timer) clearTimeout(timer)
+})
 const taskId = ref<number | null>(null)
 const filtered = computed(() =>
   data.value.filter((run) => !taskId.value || run.task_id === taskId.value),
@@ -16,7 +59,12 @@ const filtered = computed(() =>
 </script>
 
 <template>
-  <PageHeading title="运行记录" description="保存每次执行的起止时间、尝试次数和结果。"
+  <RouterLink v-if="accountId" :to="`/accounts/${accountId}`" class="text-link history-back"
+    >返回账号学习</RouterLink
+  >
+  <PageHeading
+    :title="accountId ? '账号运行记录' : '运行记录'"
+    description="学习过程中自动保存执行记录，可查看起止时间与运行结果。"
     ><NButton :loading="loading" @click="refresh"
       ><template #icon><RefreshCw :size="15" /></template>刷新记录</NButton
     ></PageHeading
@@ -75,7 +123,14 @@ const filtered = computed(() =>
     <EmptyState
       v-else
       title="执行记录会保存在这里"
-      description="后台任务启动后，可在这里查看每一次尝试的详情。"
+      description="开始学习后，可在这里查看自动保存的执行详情。"
     />
   </section>
 </template>
+
+<style scoped>
+.history-back {
+  display: inline-block;
+  margin-bottom: 18px;
+}
+</style>

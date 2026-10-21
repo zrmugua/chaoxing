@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   NAlert,
   NButton,
@@ -14,11 +15,9 @@ import {
   useDialog,
   useMessage,
 } from 'naive-ui'
-import { Plus, RefreshCw, ShieldCheck, UsersRound } from 'lucide-vue-next'
+import { ArrowRight, Plus, RefreshCw, UsersRound } from 'lucide-vue-next'
 import PageHeading from '../components/PageHeading.vue'
 import EmptyState from '../components/EmptyState.vue'
-import LearningRulesPanel from '../components/LearningRulesPanel.vue'
-import RunConfirmation from '../components/RunConfirmation.vue'
 import ConfigurationPanel from '../components/ConfigurationPanel.vue'
 import { useResource } from '../composables/useResource'
 import { api, errorText, post } from '../api'
@@ -28,23 +27,12 @@ import type { Account } from '../types'
 const { data, error, loading, refresh } = useResource<Account[]>('/accounts', [], 5000)
 const message = useMessage()
 const dialog = useDialog()
+const router = useRouter()
 const show = ref(false)
 const editing = ref<Account | null>(null)
 const form = ref({ label: '', username: '', password: '' })
 const saving = ref(false)
-const busy = ref<number | null>(null)
-const rulesAccount = ref<Account | null>(null)
-const showRules = ref(false)
-const showRun = ref(false)
 const showConfiguration = ref(false)
-function prepareRun() {
-  showRules.value = false
-  showRun.value = true
-}
-function openRules(account: Account) {
-  rulesAccount.value = account
-  showRules.value = true
-}
 function open(account?: Account) {
   editing.value = account || null
   form.value = { label: account?.label || '', username: '', password: '' }
@@ -73,31 +61,29 @@ async function save() {
           ...(form.value.password ? { password: form.value.password } : {}),
         }),
       })
-    else
-      await post('/accounts', {
+    else {
+      const created = await post<Account>('/accounts', {
         ...form.value,
         label: form.value.label.trim(),
         username: form.value.username.trim(),
       })
-    message.success(editing.value ? '账号配置已更新' : '账号已添加，请进行登录验证')
+      close()
+      await router.push(`/accounts/${created.id}`)
+      try {
+        await post(`/accounts/${created.id}/learning/action`, { action: 'refresh' })
+        message.success('账号已添加，正在登录并同步课程与进度')
+      } catch (e) {
+        message.warning(`账号已添加，自动同步暂未启动：${errorText(e)}。可在账号页重新同步。`)
+      }
+      return
+    }
+    message.success('账号配置已更新')
     close()
     await refresh()
   } catch (e) {
     message.error(errorText(e))
   } finally {
     saving.value = false
-  }
-}
-async function execute(account: Account, action: string) {
-  busy.value = account.id
-  try {
-    await post(`/accounts/${account.id}/${action}`)
-    message.success(action === 'login' ? '登录验证任务已加入队列' : '课程同步任务已加入队列')
-    await refresh()
-  } catch (e) {
-    message.error(errorText(e))
-  } finally {
-    busy.value = null
   }
 }
 function remove(account: Account) {
@@ -120,7 +106,7 @@ function remove(account: Account) {
 </script>
 
 <template>
-  <PageHeading title="学习通账号" description="添加账号、验证登录并同步课程。"
+  <PageHeading title="学习账号" description="进入账号，选择课程、查看进度并管理学习。"
     ><NButton @click="showConfiguration = true">导入 / 导出配置</NButton
     ><NButton :loading="loading" @click="refresh"
       ><template #icon><RefreshCw :size="15" /></template>刷新</NButton
@@ -129,86 +115,54 @@ function remove(account: Account) {
     ></PageHeading
   >
   <NAlert v-if="error" type="error" class="mb-20">{{ error }}</NAlert>
-  <div class="info-strip">
-    <ShieldCheck :size="18" /><span
-      >每个账号的登录会话、Cookie 和任务状态独立管理，敏感凭据加密存储。</span
-    >
-  </div>
   <section class="panel">
     <div class="panel-heading">
       <h2>
         学习通账号<span class="count-badge">{{ data.length }}</span>
       </h2>
-      <span class="muted">登录后同步课程</span>
+      <span class="muted">课程选择持续保存</span>
     </div>
-    <div v-if="data.length" class="table-scroll">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>账号</th>
-            <th>会话状态</th>
-            <th>最近检查</th>
-            <th>添加时间</th>
-            <th class="actions-cell">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="account in data" :key="account.id">
-            <td>
-              <div class="account-cell">
-                <span class="account-avatar"><UsersRound :size="19" /></span>
-                <div>
-                  <div class="cell-title">{{ account.label }}</div>
-                  <div class="cell-subtitle">账号 #{{ account.id }}</div>
-                </div>
-              </div>
-            </td>
-            <td>
-              <NTag :type="statusType(account.status)" :bordered="false" round size="small">{{
-                label(account.status)
-              }}</NTag>
-            </td>
-            <td class="cell-date">{{ date(account.checked_at, true) }}</td>
-            <td class="cell-date">{{ date(account.created_at, true) }}</td>
-            <td class="actions-cell">
-              <div class="row-actions">
-                <NButton
-                  size="tiny"
-                  secondary
-                  type="primary"
-                  :loading="busy === account.id"
-                  @click="execute(account, 'login')"
-                  >登录验证</NButton
-                ><NButton
-                  size="tiny"
-                  secondary
-                  :disabled="busy === account.id"
-                  @click="execute(account, 'sync')"
-                  >同步课程</NButton
-                ><NButton size="tiny" quaternary @click="openRules(account)">配置与启动</NButton
-                ><RouterLink
-                  :to="{ path: '/logs', query: { account_id: account.id } }"
-                  class="text-link small"
-                  >日志</RouterLink
-                ><NButton size="tiny" quaternary @click="open(account)">编辑</NButton
-                ><NButton size="tiny" quaternary type="error" @click="remove(account)"
-                  >删除</NButton
-                >
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-if="data.length" class="learning-account-list" role="list">
+      <article
+        v-for="account in data"
+        :key="account.id"
+        class="learning-account-row"
+        role="listitem"
+      >
+        <RouterLink
+          :to="`/accounts/${account.id}`"
+          class="learning-account-link"
+          :aria-label="`进入 ${account.label} 的学习页面`"
+        >
+          <div class="account-cell">
+            <span class="account-avatar"><UsersRound :size="19" /></span>
+            <div>
+              <div class="cell-title">{{ account.label }}</div>
+              <div class="cell-subtitle">最近登录检查 {{ date(account.checked_at, true) }}</div>
+            </div>
+          </div>
+          <div class="account-entry-state">
+            <NTag :type="statusType(account.status)" :bordered="false" round size="small">{{
+              label(account.status)
+            }}</NTag>
+            <span class="account-entry-label">进入学习 <ArrowRight :size="16" /></span>
+          </div>
+        </RouterLink>
+        <div class="learning-account-actions">
+          <NButton size="small" quaternary @click="open(account)">编辑</NButton
+          ><NButton size="small" quaternary type="error" @click="remove(account)">删除</NButton>
+        </div>
+      </article>
     </div>
     <EmptyState
       v-else
       title="连接你的第一个学习账号"
-      description="添加学习通账号后，完成登录验证，即可同步和管理课程。"
+      description="添加账号后自动登录并同步课程，勾选课程即可开始学习。"
       ><NButton type="primary" @click="open()">添加学习通账号</NButton></EmptyState
     >
   </section>
   <p class="page-note">
-    登录验证在后台执行。遇到验证码或平台人工确认时，具体提示会记录在任务中心与系统日志中。
+    每个账号独立保存课程选择、学习规则和登录会话。登录或学习过程中需要处理的提示，会显示在账号页和原始日志中。
   </p>
   <NModal
     :show="show"
@@ -249,17 +203,82 @@ function remove(account: Account) {
       ></NForm
     ></NModal
   >
-  <NDrawer v-model:show="showRules" :width="'min(680px, 100vw)'"
-    ><NDrawerContent :title="`${rulesAccount?.label || ''} · 课程配置`" closable
-      ><LearningRulesPanel
-        v-if="rulesAccount"
-        :key="rulesAccount.id"
-        :account-id="rulesAccount.id"
-        @start="prepareRun" /></NDrawerContent
-  ></NDrawer>
-  <RunConfirmation v-model:show="showRun" :account-id="rulesAccount?.id || null" />
   <NDrawer v-model:show="showConfiguration" :width="'min(760px, 100vw)'"
     ><NDrawerContent title="Yatori 配置文件" closable
       ><ConfigurationPanel @imported="refresh" /></NDrawerContent
   ></NDrawer>
 </template>
+
+<style scoped>
+.learning-account-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0 18px 0 0;
+}
+.learning-account-row:last-child {
+  border-bottom: 0;
+}
+.learning-account-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px;
+  min-width: 0;
+  flex: 1;
+}
+.learning-account-link:hover {
+  background: var(--hover);
+}
+.account-cell {
+  min-width: 0;
+}
+.account-cell > div {
+  min-width: 0;
+}
+.cell-title {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.account-entry-state {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  flex-shrink: 0;
+}
+.account-entry-label {
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.learning-account-actions {
+  display: flex;
+  gap: 2px;
+}
+@media (max-width: 650px) {
+  .learning-account-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding: 0;
+  }
+  .learning-account-link {
+    width: 100%;
+    flex: auto;
+    flex-wrap: wrap;
+    padding: 20px 16px 12px;
+    gap: 16px;
+  }
+  .account-entry-state {
+    width: 100%;
+    padding-left: 46px;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .learning-account-actions {
+    padding: 0 12px 10px;
+    margin-left: auto;
+  }
+}
+</style>

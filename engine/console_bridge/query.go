@@ -23,7 +23,7 @@ import (
 	consoleutils "yatori-go-console/utils"
 )
 
-var bridgeVersion = "0.6.1"
+var bridgeVersion = "0.7.0"
 
 const bridgeConsoleCommit = "017711107803f5232fea59446a5b8c801d4ca8b2"
 

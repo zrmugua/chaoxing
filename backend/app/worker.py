@@ -27,18 +27,17 @@ class Worker:
         if marker:
             self.vault.open(json.loads(marker["value"]))
         self.service = PlatformService(self.db, self.vault)
+        self.learning = self.service.learning
         self.process_factory = process_factory
         self.shutdown = threading.Event()
 
     def recover(self):
         now = time.time()
         with self.db.connect(immediate=True) as c:
-            c.execute("UPDATE tasks SET state='paused',updated_at=?,message='服务重启，点击继续可重新启动 Console' WHERE state IN ('running','pausing','recovering')", (now,))
+            c.execute("UPDATE tasks SET state='paused',updated_at=?,message='服务重启，点击继续可重新启动 Console' WHERE state IN ('running','pausing','recovering') OR (state='queued' AND account_id IN (SELECT account_id FROM account_learning))", (now,))
             c.execute("UPDATE tasks SET state='stopped',updated_at=?,finished_at=? WHERE state='stopping'", (now, now))
             c.execute("UPDATE runs SET state='interrupted',finished_at=?,message='Console 管理服务已中断' WHERE finished_at IS NULL", (now,))
-        for path in (self.config.data_dir / "console").glob("*/*"):
-            if path.name in ("config.yaml", "query.json", "query-result.json", "ip.txt"):
-                path.unlink(missing_ok=True)
+            c.execute("UPDATE account_learning SET desired_state=CASE WHEN desired_state='running' THEN 'paused' ELSE desired_state END,state=CASE WHEN desired_state='running' OR state IN ('queued','running','applying','pausing','refreshing') THEN 'paused' WHEN state='stopping' THEN 'stopped' ELSE state END,current_task_id=NULL,active_course_titles='[]',refresh_pending=0,revision=revision+1,message=CASE WHEN desired_state='running' THEN '服务已重启，课程选择已保留，点击继续启动学习' ELSE message END,updated_at=?", (now,))
         self.db.log("原版 Console 进程管理服务已启动")
 
     def claim(self, available_slots=8):
@@ -46,13 +45,15 @@ class Worker:
             return None
         now = time.time()
         with self.db.connect(immediate=True) as c:
+            self.learning.reconcile_all(c)
             row = c.execute("""SELECT * FROM tasks t WHERE t.state IN ('queued','recovering') AND t.next_run_at<=?
                 AND NOT EXISTS(SELECT 1 FROM tasks busy WHERE busy.account_id=t.account_id
-                AND busy.state IN ('running','pausing','stopping')) ORDER BY t.id LIMIT 1""", (now,)).fetchone()
+                AND busy.state IN ('running','pausing','stopping')) ORDER BY CASE WHEN t.kind='study' THEN 1 ELSE 0 END,t.id LIMIT 1""", (now,)).fetchone()
             if row is None:
                 return None
             c.execute("UPDATE tasks SET state='running',attempts=attempts+1,started_at=COALESCE(started_at,?),finished_at=NULL,updated_at=? WHERE id=?", (now, now, row["id"]))
             run_id = c.execute("INSERT INTO runs(task_id,attempt,started_at,state) VALUES(?,?,?,'running')", (row["id"], row["attempts"] + 1, now)).lastrowid
+            self.learning.claimed(c, row)
             return dict(row) | {"attempts": row["attempts"] + 1, "run_id": run_id}
 
     def control(self, task_id):
@@ -78,6 +79,9 @@ class Worker:
                       (state, message, now, None if state == "paused" else now, 100 if confirmed else 0,
                        "confirmed" if confirmed else "unknown", task["id"]))
             c.execute("UPDATE runs SET state=?,message=?,finished_at=? WHERE id=?", (state, message, now, task["run_id"]))
+            if self.shutdown.is_set():
+                c.execute("UPDATE account_learning SET desired_state=CASE WHEN desired_state='running' THEN 'paused' ELSE desired_state END,state=CASE WHEN desired_state='running' THEN 'paused' ELSE desired_state END,revision=revision+1 WHERE account_id=?", (task["account_id"],))
+            self.learning.finished(c, task, state, message)
         self.db.log(message, task["id"], "error" if state == "failed" else "info")
 
     def run_task(self, task):
@@ -89,6 +93,10 @@ class Worker:
                 raise ConsoleError("请从账号或课程页确认配置并创建 Console 任务")
             rules = checkpoint.get("options") or self.service.study_settings(account["id"])
             value, proxy, secrets = console_config(self.service, account, rules, checkpoint.get("course_titles") if task["kind"] == "study" else None)
+            if task["kind"] == "refresh_account":
+                self.refresh_account(task, account, value, proxy, secrets)
+                self.finish(task, "succeeded", "课程与章节进度已同步", confirmed=True)
+                return
             mode = {"login": "courses", "sync_courses": "courses", "sync_chapters": "chapters", "sync_assessments": "assessments"}.get(task["kind"])
             course = self.vault.open(self.service.course(task["course_id"])["payload"]) if mode in ("chapters", "assessments") else None
             if not mode and task["kind"] != "study":
@@ -96,10 +104,10 @@ class Worker:
             self.db.log("正在启动 yatori-go-console" + (" 查询" if mode else ""), task["id"])
             result = self.process_factory(self.config).run(account["id"], value, proxy, secrets,
                 lambda: self.control(task["id"]),
-                lambda text, level: self.db.log(text, task["id"], level, source="yatori"), mode, course)
+                lambda text, level: self.console_log(task, text, level), mode, course)
             self.control(task["id"])
             if mode == "courses":
-                self.service.save_courses(account["id"], result)
+                self.service.save_courses(account["id"], result, authoritative=True)
                 self.db.execute("UPDATE accounts SET status='ready',checked_at=? WHERE id=?", (time.time(), account["id"]))
                 message = f"Console 查询完成，共 {len(result)} 门课程"
             elif mode == "chapters":
@@ -118,8 +126,35 @@ class Worker:
         except Exception:
             self.finish(task, "failed", "Console 管理任务异常，请检查配置与设备存储空间")
 
+    def console_log(self, task, text, level):
+        self.db.log(text, task["id"], level, source="yatori")
+        self.learning.log_activity(task, text)
+
+    def refresh_account(self, task, account, value, proxy, secrets):
+        def query(mode, course=None):
+            self.control(task["id"])
+            result = self.process_factory(self.config).run(account["id"], value, proxy, secrets,
+                lambda: self.control(task["id"]), lambda text, level: self.console_log(task, text, level), mode, course)
+            self.control(task["id"])
+            return result
+        courses = query("courses")
+        self.service.save_courses(account["id"], courses, authoritative=True)
+        self.db.execute("UPDATE accounts SET status='ready',checked_at=? WHERE id=?", (time.time(), account["id"]))
+        failures = []
+        for course in self.db.rows("SELECT * FROM courses WHERE account_id=? AND available=1 ORDER BY id", (account["id"],)):
+            try:
+                chapters = query("chapters", self.vault.open(course["payload"]))
+                self.service.save_chapters(course["id"], chapters)
+            except ConsoleError as error:
+                failures.append(course["title"])
+                self.db.log(f"{course['title']}：{error}", task["id"], "warning")
+        if failures:
+            raise ConsoleError(f"已同步可用课程进度，{len(failures)} 门课程查询失败，请查看原始日志后重试")
+
     def tick(self):
         self.db.execute("INSERT INTO runtime VALUES(1,?) ON CONFLICT(id) DO UPDATE SET heartbeat=excluded.heartbeat", (time.time(),))
+        with self.db.connect(immediate=True) as connection:
+            self.learning.reconcile_all(connection)
 
     def serve(self):
         try:

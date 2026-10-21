@@ -1,6 +1,7 @@
 """Launch the original Console in a private, single-account working directory."""
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 import queue
 import re
@@ -56,6 +57,33 @@ class ConsoleProcess:
         self.command = command or [str(Path(config.console_binary).resolve())]
 
     def run(self, account_id, value, proxy, secrets, control, log, mode=None, course=None):
+        folder = (self.config.data_dir / "console" / str(account_id)).resolve()
+        folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with self.ownership(folder, control) as ownership_fd:
+            return self._run(account_id, value, proxy, secrets, control, log, mode, course, ownership_fd)
+
+    @staticmethod
+    @contextmanager
+    def ownership(folder, control):
+        if os.name == "nt":
+            yield None
+            return
+        import fcntl
+        descriptor = os.open(folder / ".process.lock", os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            while True:
+                control()
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    time.sleep(0.1)
+            yield descriptor
+        finally:
+            # The native child shares this open file description until it exits.
+            os.close(descriptor)
+
+    def _run(self, account_id, value, proxy, secrets, control, log, mode, course, ownership_fd):
         folder = (self.config.data_dir / "console" / str(account_id)).resolve()
         folder.mkdir(parents=True, exist_ok=True, mode=0o700)
         cache = folder / "cache"
@@ -119,7 +147,8 @@ class ConsoleProcess:
             child = subprocess.Popen(self.command, cwd=folder, env=env, stdin=subprocess.DEVNULL,
                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                      encoding="utf-8", errors="replace", bufsize=1,
-                                     start_new_session=os.name != "nt")
+                                     start_new_session=os.name != "nt",
+                                     **({"pass_fds": (ownership_fd,)} if ownership_fd is not None else {}))
             reader = threading.Thread(target=read_output, daemon=True, name="console-output")
             reader.start()
             deadline = time.monotonic() + 300 if mode else None

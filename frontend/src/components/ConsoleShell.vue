@@ -3,11 +3,8 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { NButton, NTooltip, useMessage } from 'naive-ui'
 import {
-  BookOpen,
-  ClipboardList,
   Clock3,
   GraduationCap,
-  LayoutDashboard,
   LogOut,
   Moon,
   PanelLeftClose,
@@ -30,14 +27,12 @@ const mobileNav = ref<HTMLElement | null>(null)
 const title = computed(() => String(route.meta.title || '仪表盘'))
 const description = computed(() => String(route.meta.description || '学习管理工作台'))
 const items = [
-  { path: '/', title: '仪表盘', icon: LayoutDashboard },
-  { path: '/accounts', title: '账号管理', icon: UsersRound },
-  { path: '/courses', title: '课程管理', icon: BookOpen },
-  { path: '/tasks', title: '任务中心', icon: ClipboardList },
+  { path: '/accounts', title: '学习账号', icon: UsersRound },
+  { path: '/settings', title: '学习设置', icon: Settings2 },
   { path: '/runs', title: '运行记录', icon: Clock3 },
   { path: '/logs', title: '系统日志', icon: Terminal },
-  { path: '/settings', title: '系统设置', icon: Settings2 },
 ]
+const isActive = (path: string) => route.path === path || route.path.startsWith(`${path}/`)
 
 async function revealActiveMobileItem() {
   await nextTick()
@@ -88,7 +83,8 @@ async function logout() {
           :key="item.path"
           :to="item.path"
           class="nav-item"
-          :class="{ active: route.path === item.path }"
+          :class="{ active: isActive(item.path) }"
+          :aria-current="isActive(item.path) ? 'page' : undefined"
           :aria-label="item.title"
           :title="collapsed ? item.title : undefined"
         >
@@ -181,7 +177,8 @@ async function logout() {
         :key="item.path"
         :to="item.path"
         class="mobile-nav-item"
-        :class="{ active: route.path === item.path }"
+        :class="{ active: isActive(item.path) }"
+        :aria-current="isActive(item.path) ? 'page' : undefined"
       >
         <component :is="item.icon" :size="18" :stroke-width="1.7" />
         <span>{{ item.title }}</span>

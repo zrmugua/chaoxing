@@ -18,6 +18,8 @@ class PlatformService:
     def __init__(self, db: Database, vault: Vault):
         self.db = db
         self.vault = vault
+        from .account_learning import AccountLearning
+        self.learning = AccountLearning(self)
 
     def account(self, account_id):
         account = self.db.one("SELECT * FROM accounts WHERE id=?", (account_id,))
@@ -39,7 +41,7 @@ class PlatformService:
         checkpoint = {"runtime": "original-console"}
         if kind == "study":
             rules = rules_with_defaults(options if options is not None else self.study_settings(account_id))
-            courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? ORDER BY id", (account_id,))
+            courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? AND available=1 ORDER BY id", (account_id,))
             selected = list(selected_courses) if selected_courses is not None else [c for c in courses if (c["id"] == course_id if course_id is not None else course_selected(c, rules))]
             if selected_courses is not None and any(c not in courses for c in selected):
                 raise HTTPException(409, "课程已更新，请重新查看启动摘要")
@@ -59,6 +61,10 @@ class PlatformService:
         return self.db.one("SELECT * FROM tasks WHERE id=?", (task_id,))
 
     def action(self, task_id, action):
+        task = self.db.one("SELECT * FROM tasks WHERE id=?", (task_id,))
+        if task and task["kind"] == "study" and self.db.one("SELECT 1 FROM account_learning WHERE account_id=?", (task["account_id"],)):
+            snapshot = self.learning.action(task["account_id"], "start" if action == "retry" else action)
+            return self.db.one("SELECT * FROM tasks WHERE id=?", (snapshot["current_task_id"] or task_id,))
         now = time.time()
         try:
             with self.db.connect(immediate=True) as c:
@@ -112,7 +118,7 @@ class PlatformService:
 
     def study_plan(self, account_id, course_id=None):
         rules = self.study_settings(account_id)
-        courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? ORDER BY id", (account_id,))
+        courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? AND available=1 ORDER BY id", (account_id,))
         selected = [course for course in courses if (course["id"] == course_id if course_id else course_selected(course, rules))]
         if rules["answer_mode"] == "ai" and not self.ai_settings()["enabled"]:
             raise HTTPException(409, "请在系统设置中启用 AI 答题服务")
@@ -126,7 +132,7 @@ class PlatformService:
 
     def queue_courses(self, account_id, plan=None):
         rules = plan["rules"] if plan else self.study_settings(account_id)
-        courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? ORDER BY id", (account_id,))
+        courses = self.db.rows("SELECT id,title,remote_id FROM courses WHERE account_id=? AND available=1 ORDER BY id", (account_id,))
         selected = list(plan["courses"]) if plan else [course for course in courses if course_selected(course, rules)]
         if not selected:
             raise HTTPException(409, "请同步并选择课程后启动")
@@ -147,19 +153,23 @@ class PlatformService:
         secret = "token" if name == "question_bank" else "password"
         return {k: v for k, v in value.items() if k != secret} | {"secret_configured": bool(value[secret])}
 
-    def save_courses(self, account_id, courses):
+    def save_courses(self, account_id, courses, authoritative=False):
         now = time.time()
         with self.db.connect(immediate=True) as c:
+            if authoritative:
+                c.execute("UPDATE courses SET available=0 WHERE account_id=?", (account_id,))
             for course in courses:
                 c.execute("""INSERT INTO courses(account_id,remote_id,clazz_id,title,teacher,payload,synced_at)
                              VALUES(?,?,?,?,?,?,?) ON CONFLICT(account_id,remote_id,clazz_id) DO UPDATE SET
-                             title=excluded.title,teacher=excluded.teacher,payload=excluded.payload,synced_at=excluded.synced_at""",
+                             title=excluded.title,teacher=excluded.teacher,payload=excluded.payload,synced_at=excluded.synced_at,available=1""",
                           (account_id, str(course["courseId"]), str(course["clazzId"]), course["title"],
                            course.get("teacher", ""), self.vault.seal(course), now))
 
     def save_chapters(self, course_id, chapters):
         now = time.time()
         with self.db.connect(immediate=True) as c:
+            # Each response is the authoritative current chapter list.
+            c.execute("DELETE FROM chapters WHERE course_id=?", (course_id,))
             for chapter in chapters:
                 c.execute("""INSERT INTO chapters(course_id,remote_id,title,job_count,confirmed,locked,synced_at)
                              VALUES(?,?,?,?,?,?,?) ON CONFLICT(course_id,remote_id) DO UPDATE SET
@@ -167,6 +177,7 @@ class PlatformService:
                              locked=excluded.locked,synced_at=excluded.synced_at""",
                           (course_id, str(chapter["id"]), chapter["title"], int(chapter.get("jobCount", 0)),
                            int(chapter.get("has_finished", False)), int(chapter.get("need_unlock", False)), now))
+            c.execute("UPDATE courses SET progress_synced_at=? WHERE id=?", (now, course_id))
 
     def save_assessments(self, course_id, items, kinds=("work", "exam")):
         with self.db.connect(immediate=True) as connection:

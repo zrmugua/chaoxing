@@ -1,6 +1,6 @@
 # Yatori 来源与构建
 
-0.6.1 运行 [yatori-dev/yatori-go-console](https://github.com/yatori-dev/yatori-go-console/tree/017711107803f5232fea59446a5b8c801d4ca8b2) 的固定提交 `017711107803f5232fea59446a5b8c801d4ca8b2`。原版主程序与学习逻辑保存在 `third_party/yatori-go-console/`，共 45 个运行所需文件；逐文件 SHA-256 见 `engine/original-console.json`。
+0.7.0 运行 [yatori-dev/yatori-go-console](https://github.com/yatori-dev/yatori-go-console/tree/017711107803f5232fea59446a5b8c801d4ca8b2) 的固定提交 `017711107803f5232fea59446a5b8c801d4ca8b2`。原版主程序与学习逻辑保存在 `third_party/yatori-go-console/`，共 45 个运行所需文件；逐文件 SHA-256 见 `engine/original-console.json`。
 
 Core 使用原版 `go.mod` 的 `v0.0.0-20261020163355-ddf52f884145`。依赖通过 Go 模块校验下载。Console / Core 为 MIT，版权 Copyright (c) 2023 ChangBaiQi。
 
