@@ -7,6 +7,7 @@ Vue 3 / Naive UI 提供首页统计、账号列表与账号详情，FastAPI 提�
 | `third_party/yatori-go-console/` | 固定版本的原版 Console 运行源码 |
 | `engine/original-console.json` | 原版源码与运行库校验信息 |
 | `engine/console_bridge/query.go` | 课程查询入口与父进程存活监测 |
+| `engine/console_bridge/query_test.go` | 登录会话初始化与课程查询顺序回归测试 |
 | `backend/app/console_process.py` | 生成私有配置、启动程序、采集输出与结束进程 |
 | `backend/app/account_learning.py` | 持久账号清单、运行意图、版本校验和执行状态协调 |
 | `backend/app/worker.py` | 持久队列、账号串行、运行记录 |
@@ -14,6 +15,8 @@ Vue 3 / Naive UI 提供首页统计、账号列表与账号详情，FastAPI 提�
 | `android/` | AndroidKeyStore、前台服务、原生可执行文件打包 |
 
 学习任务不设置查询模式环境变量，直接运行原版 `main()` → `YatoriConsoleInit()` → `logic.Lunch()`。每个账号一次启动一个 Console 进程，一次运行包含所选课程。原版负责登录、视频、文档、章测、作业、考试与内部并发。查询请求通过同一可执行文件的专用入口调用原版 Console 登录和 Core 聚合接口。
+
+查询会话在登录后读取原版课程列表，初始化 `cache.UserID`，再按课程编号与班级编号匹配本次查询的课程。章节、作业和考试读取匹配后的最新课程参数。查询失败时保留数据库中的进度快照和同步时间。
 
 账号凭据和服务密钥加密保存在 SQLite。执行时配置写入应用私有目录 `console/<account_id>/config.yaml`，进程结束后清理配置、代理与查询文件。每个账号使用独立的 cwd 与缓存目录，避免 Console 单实例锁相互冲突。stdout 和 stderr 合并后按任务与账号保存，保留原文并过滤敏感值。
 

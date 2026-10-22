@@ -48,7 +48,7 @@ jobs:
         run: |
           sdkmanager "ndk;30.0.16248370"
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
-          python scripts/build_original_console.py
+          python scripts/build_original_console.py --test-abi x86_64
           python scripts/collect_go_licenses.py --original
       - name: Build Android packages and native unit tests
         env:

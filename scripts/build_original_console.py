@@ -89,8 +89,12 @@ def main():
     parser.add_argument("--host", action="store_true", help="Build a native desktop/server Console")
     parser.add_argument("--ndk")
     parser.add_argument("--abis", default="armeabi-v7a,arm64-v8a,x86_64")
+    parser.add_argument("--test-abi", choices=("armeabi-v7a", "arm64-v8a", "x86_64"),
+                        help="Also compile bridge regression tests for this Android ABI")
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args()
+    if args.test_abi and (args.host or args.test_abi not in args.abis.split(",")):
+        parser.error("--test-abi must be included in the Android --abis selection")
     pin = verify_sources()
     if args.verify:
         print("Original Console source verified: " + pin["commit"])
@@ -151,6 +155,14 @@ def main():
             (dest / "libonnxruntime.so").write_bytes(package.read("jni/" + abi + "/libonnxruntime.so"))
         binaries[abi] = {p.name: {"sha256": sha(p), "bytes": p.stat().st_size} for p in dest.glob("*.so")}
         print("Original Console built: " + abi, flush=True)
+        if args.test_abi == abi:
+            test_binary = ROOT / "artifacts/console-tests" / abi / "bridge.test"
+            test_binary.parent.mkdir(parents=True, exist_ok=True)
+            test_sources = [ROOT / "engine/console_bridge" / name for name in
+                            ("query.go", "chapter_status.go", "query_test.go", "chapter_status_test.go")]
+            subprocess.run([go, "test", "-c", "-mod=readonly", "-tags=consolebridge", "-trimpath",
+                            "-o", str(test_binary), *map(str, test_sources)], cwd=source, env=environment, check=True)
+            print("Console bridge tests built: " + abi, flush=True)
     (ROOT / "artifacts").mkdir(exist_ok=True)
     (ROOT / "artifacts/original-console-build.json").write_text(json.dumps({"commit": pin["commit"],
         "bridge_sha256": sha(ROOT / "engine/console_bridge/query.go"), "models": models,

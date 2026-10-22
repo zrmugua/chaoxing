@@ -34,7 +34,7 @@ getprop ro.product.cpu.abilist
 在 UFI Tool 提供的安卓终端中，进入有权限的 shell 后可以安装并打开应用。文件路径按实际上传位置调整：
 
 ```sh
-pm install -r /sdcard/Download/chaoxing-console-0.7.2.apk
+pm install -r /sdcard/Download/chaoxing-console-0.7.3.apk
 am start -n cn.zrmug.chaoxing/.MainActivity --ez start_service true
 ```
 
@@ -76,19 +76,21 @@ Windows 使用 `android/gradlew.bat`。`CHAOXING_BUILD_PYTHON` 可指定构建�
 
 Windows 的工作目录含中文且 JDK 测试进程无法读取类路径时，可给 Gradle 传入 `-PconsoleBuildRoot=C:/CodexBuild/chaoxing`，把中间产物和测试类输出到该目录。APK 随之输出到该目录的 `app/outputs/apk/`。
 
+查询桥接的 Android 回归测试可通过 `python scripts/build_original_console.py --test-abi x86_64` 构建。测试文件输出到 `artifacts/console-tests/x86_64/bridge.test`，可推送到模拟器的 `/data/local/tmp/`，赋予执行权限后带 `-test.v` 运行。测试覆盖原版 Cookie 登录后的会话初始化、课程匹配、查询参数和章节响应解析；GitHub Actions 在 Android 模拟器中执行这些测试。
+
 应用前台服务运行 Web/Worker，从安装目录启动原版 Console。私有配置在进程结束后清理，三份原版 OCR 模型在应用私有 bundle/models 目录共享。0.7.0 启动时清理旧账号目录里的重复模型与 Windows 工具缓存。Python 服务依赖独立固定在 `android/requirements.txt`。
 
 APK 包含平台 GPL-3.0、Yatori MIT、Go、Python、Chaquopy 和前端组件许可证。发布签名 APK 时同时提供对应完整源码与构建说明，签名密钥独立备份。
 
 Gradle 生成的 release APK 为 unsigned。分发前使用 Android SDK 的 `apksigner` 和维护者密钥签名，再执行 `apksigner verify --verbose --print-certs <已签名APK>` 核对签名。覆盖升级的证书必须与已安装版本一致。
 
-## 0.7.2 安装包选择
+## 0.7.3 安装包选择
 
 | 安装包 | 适用情况 | 大小 |
 | --- | --- | --- |
-| `chaoxing-console-0.7.2.apk` | 通用，支持 ARM32 / ARM64 | 约 81 MiB |
-| `chaoxing-console-0.7.2-arm64-v8a.apk` | 支持 64 位 Android 的设备 | 约 59 MiB |
-| `chaoxing-console-0.7.2-armeabi-v7a.apk` | 32 位 Android 设备 | 约 59 MiB |
+| `chaoxing-console-0.7.3.apk` | 通用，支持 ARM32 / ARM64 | 约 81 MiB |
+| `chaoxing-console-0.7.3-arm64-v8a.apk` | 支持 64 位 Android 的设备 | 约 59 MiB |
+| `chaoxing-console-0.7.3-armeabi-v7a.apk` | 32 位 Android 设备 | 约 59 MiB |
 
 可在设备终端执行 `getprop ro.product.cpu.abilist` 查看系统支持的架构；不知道架构时使用通用包。各包使用相同应用 ID、版本和签名，支持覆盖升级。
 

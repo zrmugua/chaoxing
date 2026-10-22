@@ -3,6 +3,11 @@
 set -uo pipefail
 mkdir -p artifacts/android-ci
 result=0
+adb push artifacts/console-tests/x86_64/bridge.test /data/local/tmp/console-bridge.test || result=1
+adb shell chmod 755 /data/local/tmp/console-bridge.test || result=1
+adb shell /data/local/tmp/console-bridge.test -test.v > artifacts/android-ci/bridge-tests.log 2>&1 || result=1
+cat artifacts/android-ci/bridge-tests.log
+if [ "$result" -ne 0 ]; then exit "$result"; fi
 android/gradlew -p android :app:connectedEmulatorDebugAndroidTest --stacktrace || result=$?
 if [ "$result" -eq 0 ]; then
   # Install the standalone app after the instrumentation runner's cleanup.
