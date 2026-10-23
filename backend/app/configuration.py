@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 import yaml
 
+from .ai import console_ai_endpoint
 from .schemas import StudySettings
 from .learning import rules_with_defaults
 from .notifications import MAILBOX
@@ -70,7 +71,7 @@ def export_configuration(service, include_secrets=False):
              "emailInform": {"sw": int(email["enabled"]), "SMTPHost": email["host"], "SMTPPort": str(email["port"]),
                              "userName": email["username"], "email": email["sender"],
                              "password": email["password"] if include_secrets else ""},
-             "aiSetting": {"aiType": "METAAI" if ai["api_style"] == "metaso" else "OTHER", "aiUrl": ai["base_url"], "model": ai["model"],
+             "aiSetting": {"aiType": "METAAI" if ai["api_style"] == "metaso" else "OTHER", "aiUrl": console_ai_endpoint(ai["base_url"]), "model": ai["model"],
                            "API_KEY": ai["api_key"] if include_secrets else ""},
              "apiQueSetting": {"url": bank["url"], "exType": "CUSTOM", "exToken": bank["token"] if include_secrets else ""}},
              "users": users,

@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 import yaml
 
+from .ai import console_ai_endpoint
 from .configuration import rules_to_yatori
 from .security import redact
 
@@ -37,7 +38,7 @@ def console_config(service, account, rules, titles=None):
         "basicSetting": {"webModel": 0, "logModel": 0, "logLevel": "DEBUG" if basic["log_level"] == "debug" else "INFO",
                          "completionTone": 0, "colorLog": int(basic["color_log"]), "logOutFileSw": 0},
         "aiSetting": {"aiType": "METAAI" if ai["api_style"] == "metaso" else "OTHER",
-                      "aiUrl": ai["base_url"], "model": ai["model"], "API_KEY": ai["api_key"] if ai["enabled"] else ""},
+                      "aiUrl": console_ai_endpoint(ai["base_url"]), "model": ai["model"], "API_KEY": ai["api_key"] if ai["enabled"] else ""},
         "apiQueSetting": {"url": bank["url"] if bank["enabled"] else ""},
         "emailInform": {"sw": int(email["enabled"]), "SMTPHost": email["host"], "SMTPPort": email["port"],
                         "userName": email["username"], "password": email["password"]}},

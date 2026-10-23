@@ -256,7 +256,10 @@ onMounted(() => void load())
                         { label: '仅错误', value: 'error' },
                       ]"
                     />
-                    <p>Console 使用 INFO 或 DEBUG，在下次启动时生效。警告和错误选项仅筛选管理台日志，Console 仍输出 INFO。</p>
+                    <p>
+                      Console 使用 INFO 或
+                      DEBUG，在下次启动时生效。警告和错误选项仅筛选管理台日志，Console 仍输出 INFO。
+                    </p>
                   </div></NFormItem
                 >
               </div>
@@ -296,11 +299,17 @@ onMounted(() => void load())
                   @update:value="applyProvider"
               /></NFormItem>
               <NFormItem label="API 地址">
-                <NInput
-                  v-model:value="ai.base_url"
-                  placeholder="https://api.example.com/v1"
-                  :disabled="!ai.enabled"
-                />
+                <div class="setting-field full-width">
+                  <NInput
+                    v-model:value="ai.base_url"
+                    placeholder="https://api.example.com/v1"
+                    :disabled="!ai.enabled"
+                  />
+                  <p>
+                    支持 /v1 等版本基础地址，运行时自动补齐
+                    /chat/completions；也可填写完整接口地址。
+                  </p>
+                </div>
               </NFormItem>
               <NFormItem label="模型名称">
                 <NInput
@@ -340,9 +349,7 @@ onMounted(() => void load())
                   </p>
                 </div>
               </NFormItem>
-              <p class="settings-note">
-                AI 配置写入 Console；保存和交卷方式由账号配置控制。
-              </p>
+              <p class="settings-note">AI 配置写入 Console；保存和交卷方式由账号配置控制。</p>
               <div class="settings-actions">
                 <NButton
                   type="primary"

@@ -1,6 +1,6 @@
 # yatori-go-console 本机运行
 
-适用于 0.7.3。App 管理账号学习清单、原版 Console 的配置、进程和输出，学习从原版主程序启动。
+适用于 0.7.4。App 管理账号学习清单、原版 Console 的配置、进程和输出，学习从原版主程序启动。
 
 ## 执行链路
 
@@ -17,6 +17,8 @@
 `videoModel`、`cxNode`、`cxChapterTestSw`、`cxWorkSw`、`cxExamSw`、`shuffleSw`、`autoExam`、`examAutoSubmit` 与课程范围按原版字段写入。音频、文档、阅读、外链的处理跟随 Console 流程。原版 `videoModel=0` 也会影响其文档和外链分支。
 
 AI 支持原版 Chat Completions 兼容接口及秘塔接口。题库使用 `apiQueSetting.url`。邮件使用原版 SMTP 配置，并在原版流程到达通知时发送。账号代理以 `ip.txt` 接入原版 HTTP 代理池。
+
+AI 地址可填写服务域名、以 `/v1` 等版本号结尾的基础地址，或完整接口地址。生成运行配置和导出 YAML 时，标准基础地址会补齐 `/chat/completions`；已填写的完整接口路径直接传给 Console。比如 `https://api.example.com/v1` 会生成 `https://api.example.com/v1/chat/completions`。保存后暂停并继续账号，新的学习进程会使用最新配置。
 
 `examAutoSubmit=0` 保存，`1` 自动交卷；`2` 对章测检查空题，对课程作业和考试仍自动交卷。界面按该版本的真实行为提示。
 

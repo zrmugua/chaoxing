@@ -1,10 +1,28 @@
 import ipaddress
+import re
 import socket
 from urllib.parse import urlparse
 
 import httpx
 
 from .adapters.contracts import AdapterError
+
+
+def console_ai_endpoint(url: str) -> str:
+    """Expand standard API base URLs for Console's complete endpoint field."""
+    endpoint = url.strip()
+    if not endpoint:
+        return ""
+    try:
+        parsed = urlparse(endpoint)
+    except ValueError:
+        return endpoint
+    path = parsed.path.rstrip("/")
+    if not path or re.search(r"/v\d+$", path):
+        return parsed._replace(path=path + "/chat/completions").geturl()
+    if path.endswith("/chat/completions"):
+        return parsed._replace(path=path).geturl()
+    return endpoint
 
 
 def validate_endpoint(url: str):
