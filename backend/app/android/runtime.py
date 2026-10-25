@@ -23,6 +23,13 @@ class AndroidVault:
         return json.loads(str(self.cipher.decrypt(value)))
 
 
+def console_timezone():
+    from java import jclass
+    zone = jclass("java.util.TimeZone").getDefault()
+    current_millis = jclass("java.lang.System").currentTimeMillis()
+    return str(zone.getID()), int(zone.getOffset(current_millis)) // 1000
+
+
 def start(data_dir, asset_dir, master_key, setup_token, port, native_dir):
     global _worker, _server, _threads
     if _server is not None:
@@ -40,7 +47,7 @@ def start(data_dir, asset_dir, master_key, setup_token, port, native_dir):
                     session_cookie="study_android_session",
                     console_binary=str(Path(str(native_dir)) / "libyatori_console.so"),
                     onnx_library=str(Path(str(native_dir)) / "libonnxruntime.so"),
-                    model_dir=str(asset_dir / "models"))
+                    model_dir=str(asset_dir / "models"), console_timezone=console_timezone)
     prepare_resources(data_dir, asset_dir / "models")
     app = create_app(config)
     if not app.state.db.one("SELECT value FROM settings WHERE key='android_configured'"):

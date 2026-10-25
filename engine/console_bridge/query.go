@@ -24,7 +24,7 @@ import (
 	consoleutils "yatori-go-console/utils"
 )
 
-var bridgeVersion = "0.7.4"
+var bridgeVersion = "0.7.5"
 
 const bridgeConsoleCommit = "017711107803f5232fea59446a5b8c801d4ca8b2"
 
@@ -35,6 +35,14 @@ type bridgeResult struct {
 }
 
 func init() {
+	location, err := bridgeLogLocation(os.Getenv("YATORI_TIMEZONE_NAME"), os.Getenv("YATORI_TIMEZONE_OFFSET"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	if location != nil {
+		time.Local = location
+	}
 	if os.Getenv("YATORI_MANAGED") == "1" {
 		parent := os.Getppid()
 		go func() {
@@ -66,8 +74,10 @@ func init() {
 }
 
 func bridgeQuery(mode string) (any, error) {
+	zoneName, offsetSeconds := time.Now().Zone()
 	metadata := map[string]any{"version": bridgeVersion, "console_commit": bridgeConsoleCommit,
-		"execution": "yatori-go-console", "os": runtime.GOOS, "arch": runtime.GOARCH}
+		"execution": "yatori-go-console", "os": runtime.GOOS, "arch": runtime.GOARCH,
+		"timezone": zoneName, "utc_offset_seconds": offsetSeconds}
 	if mode == "metadata" {
 		return metadata, nil
 	}
@@ -125,6 +135,19 @@ func bridgeQuery(mode string) (any, error) {
 		points: (*api.XueXiTUserCache).FetchChapterPointStatus,
 		works:  core.PullWorkListAction, exams: core.PullExamListAction,
 	})
+}
+
+// Android's Go runtime defaults Local to UTC. The host supplies the device's
+// current zone and offset for each new process; Unix timestamps remain intact.
+func bridgeLogLocation(name, offsetText string) (*time.Location, error) {
+	if name == "" && offsetText == "" {
+		return nil, nil
+	}
+	offset, err := strconv.Atoi(offsetText)
+	if name == "" || len(name) > 128 || err != nil || offset < -86400 || offset > 86400 {
+		return nil, fmt.Errorf("Console 日志时区配置无效")
+	}
+	return time.FixedZone(name, offset), nil
 }
 
 // These boundaries keep the original Console operations available to both the

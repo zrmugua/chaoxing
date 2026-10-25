@@ -94,6 +94,12 @@ class ConsoleProcess:
             (folder / name).unlink(missing_ok=True)
         env = dict(os.environ)
         env.pop("YATORI_BRIDGE_MODE", None)
+        env.pop("YATORI_TIMEZONE_NAME", None)
+        env.pop("YATORI_TIMEZONE_OFFSET", None)
+        timezone_provider = getattr(self.config, "console_timezone", None)
+        if timezone_provider is not None:
+            zone_name, offset_seconds = timezone_provider()
+            env.update(YATORI_TIMEZONE_NAME=zone_name, YATORI_TIMEZONE_OFFSET=str(offset_seconds))
         env.update(XDG_CACHE_HOME=str(cache), LOCALAPPDATA=str(cache), YATORI_MANAGED="1")
         if self.config.onnx_library:
             env["YATORI_ONNX_LIBRARY"] = str(Path(self.config.onnx_library).resolve())

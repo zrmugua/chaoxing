@@ -17,6 +17,7 @@ class Config:
     console_binary: str = os.environ.get("YATORI_CONSOLE_BINARY", "bin/yatori-console.exe" if os.name == "nt" else "bin/yatori-console")
     onnx_library: str = os.environ.get("YATORI_ONNX_LIBRARY", "")
     model_dir: str = os.environ.get("YATORI_MODEL_DIR", "")
+    console_timezone: Callable[[], tuple[str, int]] | None = None
 
     @classmethod
     def from_env(cls):

@@ -6,7 +6,7 @@
 
 Android 8.0 及以上。提供 ARM32 / ARM64 通用包，以及各架构独立安装包；不确定架构时选择通用包。安装后启动服务，在同一局域网浏览器打开 App 显示的地址。首页展示账号、课程与执行统计，通过「学习账号」进入课程管理。账号列表与详情页均提供「账号学习配置」，可设置各账号的视频方式、答题策略、通知与代理。添加账号后自动查询课程；进入账号，勾选课程并保存学习清单，即可开始学习。Console 在安卓设备上执行，关闭浏览器仍可继续。
 
-[下载 APK 与对应源码](https://github.com/zrmugua/chaoxing/releases/tag/android-v0.7.4)。安装、覆盖升级与 UFI Tool 操作见 [Android 指南](docs/android.md)。
+[下载 APK 与对应源码](https://github.com/zrmugua/chaoxing/releases/tag/android-v0.7.5)。安装、覆盖升级与 UFI Tool 操作见 [Android 指南](docs/android.md)。
 
 ## 配置与运行
 

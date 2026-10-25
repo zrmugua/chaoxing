@@ -8,12 +8,44 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	core "github.com/yatori-dev/yatori-go-core/aggregation/xuexitong"
 	api "github.com/yatori-dev/yatori-go-core/api/xuexitong"
 	"yatori-go-console/config"
 	consolexxt "yatori-go-console/logic/xuexitong"
 )
+
+func TestConsoleLogDeviceTimezone(t *testing.T) {
+	for _, test := range []struct{ name, offset, want string }{
+		{"Asia/Shanghai", "28800", "2026-10-25 20:00:00"},
+		{"America/Bogota", "-18000", "2026-10-25 07:00:00"},
+		{"Asia/Kathmandu", "20700", "2026-10-25 17:45:00"},
+	} {
+		location, err := bridgeLogLocation(test.name, test.offset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		instant := time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
+		local := instant.In(location)
+		if local.Format("2006-01-02 15:04:05") != test.want || local.Unix() != instant.Unix() {
+			t.Fatalf("incorrect log time or altered epoch: %s", local)
+		}
+	}
+	location, err := bridgeLogLocation("", "")
+	if location != nil || err != nil {
+		t.Fatal("an unspecified timezone must retain the platform default")
+	}
+}
+
+func TestConsoleLogRejectsInvalidTimezone(t *testing.T) {
+	for _, value := range [][2]string{{"", "28800"}, {"Asia/Shanghai", ""}, {"Asia/Shanghai", "invalid"}, {"fixture", "86401"}, {"fixture", "-86401"}} {
+		location, err := bridgeLogLocation(value[0], value[1])
+		if err == nil || location != nil {
+			t.Fatalf("invalid timezone was accepted: %v", value)
+		}
+	}
+}
 
 func freshQuerySession(t *testing.T) *api.XueXiTUserCache {
 	t.Helper()

@@ -18,6 +18,21 @@ from backend.app.security import Vault
 from backend.app.worker import Worker
 
 
+def test_console_timezone_reads_android_current_offset(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from backend.app.android.runtime import console_timezone
+    class Zone:
+        def getID(self): return "Asia/Shanghai"
+        def getOffset(self, milliseconds):
+            assert milliseconds == 125000
+            return 28800000
+    classes = {"java.util.TimeZone": SimpleNamespace(getDefault=lambda: Zone()),
+               "java.lang.System": SimpleNamespace(currentTimeMillis=lambda: 125000)}
+    monkeypatch.setitem(sys.modules, "java", SimpleNamespace(jclass=lambda name: classes[name]))
+    assert console_timezone() == ("Asia/Shanghai", 28800)
+
+
 @pytest.mark.parametrize("address,expected", [
     ("127.0.0.1", 200), ("192.168.8.20", 200), ("10.1.2.3", 200),
     ("172.16.1.9", 200), ("169.254.1.1", 200), ("::1", 200), ("fd12::1", 200),

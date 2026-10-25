@@ -174,8 +174,14 @@ public class RuntimeTest {
                 "from pathlib import Path\n" +
                 "from types import SimpleNamespace\n" +
                 "from backend.app.console_process import ConsoleProcess\n" +
+                "from backend.app.android.runtime import console_timezone\n" +
                 "from backend.app.android.resources import prepare_resources, LEGACY_RESOURCES\n" +
-                "cfg = SimpleNamespace(data_dir=Path(test_dir), console_binary=native_dir + '/libyatori_console.so', onnx_library=native_dir + '/libonnxruntime.so', model_dir=model_dir)\n" +
+                "cfg = SimpleNamespace(data_dir=Path(test_dir), console_binary=native_dir + '/libyatori_console.so', onnx_library=native_dir + '/libonnxruntime.so', model_dir=model_dir, console_timezone=console_timezone)\n" +
+                "for zone in [('Asia/Shanghai', 28800), ('America/Bogota', -18000)]:\n" +
+                "    cfg.console_timezone = lambda: zone\n" +
+                "    zone_result = ConsoleProcess(cfg).run(20, {}, '', [], lambda: None, lambda *a: None, 'metadata')\n" +
+                "    assert (zone_result['timezone'], zone_result['utc_offset_seconds']) == zone\n" +
+                "cfg.console_timezone = console_timezone\n" +
                 "legacy = cfg.data_dir / 'console/1/assets'\n" +
                 "legacy.mkdir(parents=True, exist_ok=True)\n" +
                 "for name in LEGACY_RESOURCES: (legacy / name).write_bytes(b'old generated cache')\n" +
@@ -185,6 +191,7 @@ public class RuntimeTest {
                 "    result = ConsoleProcess(cfg).run(account, {}, '', [], lambda: None, lambda line, level: logs.append(line), 'selftest')\n" +
                 "    assert result['execution'] == 'yatori-go-console' and result['os'] == 'android'\n" +
                 "    assert result['models_checked'] == 3\n" +
+                "    assert (result['timezone'], result['utc_offset_seconds']) == console_timezone()\n" +
                 "    assert not any((cfg.data_dir / 'console' / str(account) / 'assets' / name).exists() for name in LEGACY_RESOURCES)\n" +
                 "    assert not (cfg.data_dir / 'console' / str(account) / 'config.yaml').exists()\n" +
                 "    assert not (cfg.data_dir / 'console' / str(account) / 'query-result.json').exists()\n" +

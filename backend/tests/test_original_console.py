@@ -25,7 +25,8 @@ def fake_console(tmp_path):
 from pathlib import Path
 import yaml
 config = yaml.safe_load(Path('config.yaml').read_text(encoding='utf-8'))
-Path('observed.json').write_text(json.dumps({'config':config,'argv':sys.argv,'cache':os.environ['XDG_CACHE_HOME']}))
+Path('observed.json').write_text(json.dumps({'config':config,'argv':sys.argv,'cache':os.environ['XDG_CACHE_HOME'],
+    'timezone':os.environ.get('YATORI_TIMEZONE_NAME'),'timezone_offset':os.environ.get('YATORI_TIMEZONE_OFFSET')}))
 print('original stdout fixture-secret', flush=True)
 print('original stderr', file=sys.stderr, flush=True)
 if config.get('query_error'):
@@ -54,6 +55,28 @@ def test_subprocess_captures_original_streams_and_cleans_credentials(platform, f
     assert "fixture-secret" not in str(observed["argv"])
     assert Path(observed["cache"]).parent == folder
     assert not any((folder / name).exists() for name in ("config.yaml", "query.json", "query-result.json", "ip.txt"))
+
+
+def test_child_timezone_is_read_for_each_launch(platform, fake_console):
+    from dataclasses import replace
+    config, _, _ = platform
+    zones = iter([("Asia/Shanghai", 28800), ("America/Bogota", -18000)])
+    process = ConsoleProcess(replace(config, console_timezone=lambda: next(zones)), fake_console)
+    for expected_name, expected_offset in [("Asia/Shanghai", "28800"), ("America/Bogota", "-18000")]:
+        lines = []
+        process.run(1, {}, "", [], lambda: None, lambda line, level: lines.append(line), "courses")
+        observed = json.loads((config.data_dir / "console/1/observed.json").read_text())
+        assert (observed["timezone"], observed["timezone_offset"]) == (expected_name, expected_offset)
+        assert lines == ["original stdout fixture-secret", "original stderr"]
+
+
+def test_unconfigured_child_does_not_inherit_another_timezone(platform, fake_console, monkeypatch):
+    config, _, _ = platform
+    monkeypatch.setenv("YATORI_TIMEZONE_NAME", "stale-zone")
+    monkeypatch.setenv("YATORI_TIMEZONE_OFFSET", "100")
+    ConsoleProcess(config, fake_console).run(1, {}, "", [], lambda: None, lambda *_: None, "courses")
+    observed = json.loads((config.data_dir / "console/1/observed.json").read_text())
+    assert observed["timezone"] is None and observed["timezone_offset"] is None
 
 
 @pytest.mark.parametrize("value", [{"exit": 2}, {"missing": True}])
